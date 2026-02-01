@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { LocalAuth } from '../storage/local';
 import { deriveMasterKey, toBase64, fromBase64 } from '../crypto';
-import { User } from '@supabase/supabase-js';
+import { User } from '../data/types';
 
 interface AuthContextType {
   user: User | null;

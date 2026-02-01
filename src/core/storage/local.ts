@@ -1,5 +1,4 @@
-import { User, Session } from '@supabase/supabase-js';
-import { Project, Document } from '../data/types';
+import { Project, Document, User, Session } from '../data/types';
 
 const KEYS = {
   USERS: 'cuboid_users',
@@ -102,11 +101,11 @@ export const LocalData = {
     }
     localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs));
   },
-  
+
   createDocument: async (doc: Document): Promise<void> => {
-      await delay();
-      const docs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]');
-      docs.push(doc);
-      localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs));
+    await delay();
+    const docs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]');
+    docs.push(doc);
+    localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs));
   }
 };
