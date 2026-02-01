@@ -17,10 +17,6 @@ function decode(bytes: Uint8Array): string {
 /**
  * Derives a Master Key from a password using PBKDF2.
  * Returns an HKDF key suitable for deriving further keys (Document Keys).
- * 
- * @param password - The user's password.
- * @param salt - The salt for key derivation.
- * @returns A CryptoKey suitable for HKDF operations.
  */
 export async function deriveMasterKey(
   password: string,
@@ -56,11 +52,6 @@ export async function deriveMasterKey(
 
 /**
  * Derives a Document Key from a Master Key using HKDF.
- * 
- * @param masterKey - The master CryptoKey (must be HKDF).
- * @param salt - The salt for key derivation.
- * @param info - Contextual info for the key derivation.
- * @returns A CryptoKey suitable for AES-GCM operations.
  */
 export async function deriveDocumentKey(
   masterKey: CryptoKey,
@@ -83,10 +74,6 @@ export async function deriveDocumentKey(
 
 /**
  * Encrypts plaintext using AES-GCM.
- * 
- * @param key - The CryptoKey to use for encryption (AES-GCM).
- * @param plaintext - The data to encrypt.
- * @returns An object containing the IV and Ciphertext.
  */
 export async function encrypt(
   key: CryptoKey,
@@ -110,11 +97,6 @@ export async function encrypt(
 
 /**
  * Decrypts ciphertext using AES-GCM.
- * 
- * @param key - The CryptoKey to use for decryption.
- * @param iv - The Initialization Vector used during encryption.
- * @param ciphertext - The encrypted data.
- * @returns The decrypted plaintext string.
  */
 export async function decrypt(
   key: CryptoKey,
@@ -131,4 +113,14 @@ export async function decrypt(
   );
 
   return decode(new Uint8Array(decryptedContent));
+}
+
+export function toBase64(bytes: Uint8Array): string {
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+  return btoa(binString);
+}
+
+export function fromBase64(base64: string): Uint8Array {
+  const binString = atob(base64);
+  return Uint8Array.from(binString, (m) => m.codePointAt(0)!);
 }

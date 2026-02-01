@@ -1,82 +1,100 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-}
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { LocalAuth } from '../storage/local';
+import { deriveMasterKey, toBase64, fromBase64 } from '../crypto';
+import { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
+  masterKey: CryptoKey | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [masterKey, setMasterKey] = useState<CryptoKey | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // SECURITY: Mock session is ephemeral. No persistence to avoid XSS risks.
-  // The useEffect that previously read from localStorage has been removed.
+  useEffect(() => {
+    const initializeAuth = async () => {
+      // Check for local session
+      const { session } = await LocalAuth.getSession();
+
+      if (session?.user) {
+        setUser(session.user);
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      if (import.meta.env.DEV) {
-        // Mock Login Bypass (InMemory)
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+      // 1. Authenticate with Local Adapter
+      const result = await LocalAuth.signIn(email, password);
+      if ('error' in result) throw result.error;
+      const { user: authUser } = result;
 
-        const mockUser: User = {
-          id: 'dev-mock-id',
-          email: email,
-          name: 'Dev User',
-        };
+      // 2. Fetch encryption_salt from profiles
+      let saltBase64 = await LocalAuth.getEncryptionSalt(authUser.id);
 
-        setUser(mockUser);
-        // REMOVED: localStorage.setItem('user', JSON.stringify(mockUser));
-      } else {
-        // Real API implementation would go here
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+      // 3. Handle New User / Missing Profile Handling
+      if (!saltBase64) {
+        // Generate new random 16-byte salt
+        const saltBytes = crypto.getRandomValues(new Uint8Array(16));
 
-        if (!response.ok) {
-          throw new Error('Login failed');
-        }
+        // Convert to Base64
+        saltBase64 = toBase64(saltBytes);
 
-        const data = await response.json();
-        setUser(data.user);
-        // Real implementation would likely set secure httpOnly cookies here
+        // Store salt
+        await LocalAuth.setEncryptionSalt(authUser.id, saltBase64);
       }
+
+      // 4. Key Derivation
+      // Convert Base64 salt back to Uint8Array
+      const saltBytes = fromBase64(saltBase64);
+
+      // Derive the master key
+      const key = await deriveMasterKey(password, saltBytes);
+
+      // 5. Finalize State
+      setUser(authUser);
+      setMasterKey(key);
+
     } catch (error) {
-      console.error('Authentication error:', error);
+      console.error('Error during sign in:', error);
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const signOut = () => {
+  const signOut = async () => {
+    await LocalAuth.signOut();
     setUser(null);
-    // REMOVED: localStorage.removeItem('user');
+    setMasterKey(null);
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    masterKey,
+    signIn,
+    signOut,
+    loading,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

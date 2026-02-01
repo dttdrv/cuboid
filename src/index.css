@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* App Layout */
 .app-container {
   display: flex;
