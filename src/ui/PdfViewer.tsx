@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 
 interface PdfViewerProps {
   pdf: Blob | null;
+  onCompileNow?: () => void;
 }
 
-export const PdfViewer: React.FC<PdfViewerProps> = ({ pdf }) => {
+export const PdfViewer: React.FC<PdfViewerProps> = ({ pdf, onCompileNow }) => {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,8 +29,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ pdf }) => {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    color: '#666',
+    backgroundColor: '#1a1a1a',
+    color: '#b6b6b6',
     fontSize: '1rem',
   };
 
@@ -41,8 +42,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ pdf }) => {
 
   if (!pdfUrl) {
     return (
-      <div className="pdf-viewer-placeholder" style={placeholderStyle}>
+      <div className="pdf-viewer-placeholder flex-col gap-3" style={placeholderStyle}>
         <p>Compile your document to see the PDF preview</p>
+        {onCompileNow && (
+          <button type="button" onClick={onCompileNow} className="btn-pill-secondary h-9 px-4">
+            Compile now
+          </button>
+        )}
       </div>
     );
   }

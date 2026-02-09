@@ -39,66 +39,9 @@ export const CompileButton: React.FC<CompileButtonProps> = ({ onCompile, onPdfRe
   }, [handleCompile]);
 
   return (
-    <>
-      <style>{`
-        .compile-button-container {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 8px;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        .compile-button {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 10px 20px;
-          background-color: #007bff;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background-color 0.2s, opacity 0.2s;
-          min-width: 140px;
-        }
-
-        .compile-button:hover:not(:disabled) {
-          background-color: #0056b3;
-        }
-
-        .compile-button:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-
-        .compile-spinner {
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        .compile-error {
-          color: #d32f2f;
-          background-color: #ffebee;
-          border: 1px solid #ffcdd2;
-          padding: 8px 12px;
-          border-radius: 4px;
-          font-size: 13px;
-          max-width: 100%;
-          word-break: break-word;
-        }
-      `}</style>
-      
-      <div className="compile-button-container">
+    <div className="flex flex-col items-start gap-2">
         <button
-          className="compile-button"
+          className="btn-pill-secondary min-w-36"
           onClick={handleCompile}
           disabled={isCompiling}
           title="Compile PDF (Ctrl+Shift+P)"
@@ -106,7 +49,7 @@ export const CompileButton: React.FC<CompileButtonProps> = ({ onCompile, onPdfRe
           {isCompiling ? (
             <>
               <svg
-                className="compile-spinner"
+                className="animate-spin"
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
@@ -130,9 +73,8 @@ export const CompileButton: React.FC<CompileButtonProps> = ({ onCompile, onPdfRe
             'Compile PDF'
           )}
         </button>
-        {error && <div className="compile-error">{error}</div>}
+        {error && <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
       </div>
-    </>
   );
 };
 

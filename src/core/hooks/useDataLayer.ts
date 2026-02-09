@@ -5,20 +5,26 @@ import * as Crypto from '../crypto';
 import { Project, Document } from '../data/types';
 
 export const useDataLayer = () => {
-  const { user, masterKey } = useAuth();
+  const { user, masterKey, selectedWorkspaceId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const listProjects = useCallback(async (): Promise<Project[]> => {
+  const listProjects = useCallback(async (workspaceId?: string): Promise<Project[]> => {
     if (!user) return [];
     setLoading(true);
     setError(null);
 
-    const data = await LocalData.listProjects(user.id);
+    const effectiveWorkspaceId = workspaceId || selectedWorkspaceId || undefined;
+    const data = effectiveWorkspaceId
+      ? await LocalData.listProjectsByWorkspace(user.id, effectiveWorkspaceId)
+      : await LocalData.listProjects(user.id);
+    const filtered = effectiveWorkspaceId
+      ? data.filter((project) => !project.workspace_id || project.workspace_id === effectiveWorkspaceId)
+      : data;
 
     setLoading(false);
-    return data;
-  }, [user]);
+    return filtered;
+  }, [user, selectedWorkspaceId]);
 
   const createProject = useCallback(async (name: string): Promise<Project | null> => {
     if (!user || !masterKey) {
@@ -30,7 +36,7 @@ export const useDataLayer = () => {
 
     try {
       // 1. Create Project
-      const project = await LocalData.createProject(user.id, name);
+      const project = await LocalData.createProject(user.id, name, selectedWorkspaceId || undefined);
 
       // 2. Create Default Document
       const docSalt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -61,7 +67,7 @@ export const useDataLayer = () => {
       setLoading(false);
       return null;
     }
-  }, [user, masterKey]);
+  }, [user, masterKey, selectedWorkspaceId]);
 
   const getDocument = useCallback(async (projectId: string): Promise<{ content: string; title: string } | null> => {
     if (!masterKey) {

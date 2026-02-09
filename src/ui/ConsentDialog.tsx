@@ -25,98 +25,16 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
     setApiKey(e.target.value);
   };
 
-  // Styles for the Modal
-  const styles: { [key: string]: React.CSSProperties } = {
-    overlay: {
-      position: 'fixed' as const,
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      backdropFilter: 'blur(2px)',
-    },
-    container: {
-      backgroundColor: '#ffffff',
-      padding: '32px',
-      borderRadius: '12px',
-      width: '450px',
-      maxWidth: '90%',
-      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    },
-    header: {
-      fontSize: '20px',
-      fontWeight: '600',
-      marginBottom: '12px',
-      color: '#1a1a1a',
-      margin: 0,
-    },
-    description: {
-      fontSize: '14px',
-      color: '#555555',
-      lineHeight: '1.5',
-      marginBottom: '24px',
-    },
-    label: {
-      display: 'block',
-      fontSize: '13px',
-      fontWeight: '500',
-      marginBottom: '8px',
-      color: '#333',
-    },
-    input: {
-      width: '100%',
-      padding: '10px 12px',
-      fontSize: '14px',
-      border: '1px solid #d1d1d1',
-      borderRadius: '6px',
-      marginBottom: '24px',
-      boxSizing: 'border-box' as const,
-      outline: 'none',
-      transition: 'border-color 0.2s',
-    },
-    inputFocus: {
-      borderColor: '#007bff',
-    },
-    buttonContainer: {
-      display: 'flex',
-      justifyContent: 'flex-end',
-      gap: '12px',
-    },
-    button: {
-      padding: '10px 18px',
-      fontSize: '14px',
-      fontWeight: '500',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      border: 'none',
-      transition: 'background-color 0.2s',
-    },
-    cancelButton: {
-      backgroundColor: '#f0f0f0',
-      color: '#333',
-    },
-    saveButton: {
-      backgroundColor: '#007bff', // Use brand color here
-      color: '#fff',
-    },
-  };
-
   return (
-    <div style={styles.overlay}>
-      <div style={styles.container}>
-        <h2 style={styles.header}>Enable AI Assistance</h2>
-        <p style={styles.description}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal-950/80 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-charcoal-900 p-6 shadow-2xl shadow-black/40">
+        <h2 className="text-xl font-semibold text-text-primary">Enable AI Assistance</h2>
+        <p className="mt-3 text-sm text-text-secondary">
           Connect to Mistral Large for intelligent editing. Your privacy is 
           protected via Zero Data Retention (ZDR).
         </p>
         
-        <label style={styles.label} htmlFor="mistral-api-key">
+        <label className="mt-6 block text-sm text-text-secondary" htmlFor="mistral-api-key">
           Mistral API Key
         </label>
         <input
@@ -125,21 +43,19 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
           placeholder="sk-..."
           value={apiKey}
           onChange={handleInputChange}
-          style={styles.input}
-          onFocus={(e) => Object.assign(e.target.style, styles.inputFocus)}
-          onBlur={(e) => e.target.style.borderColor = '#d1d1d1'}
+          className="input-pill mt-2"
         />
 
-        <div style={styles.buttonContainer}>
+        <div className="mt-6 flex justify-end gap-3">
           <button 
             onClick={onCancel} 
-            style={{ ...styles.button, ...styles.cancelButton }}
+            className="btn-pill-tertiary"
           >
             Cancel
           </button>
           <button 
             onClick={handleSave} 
-            style={{ ...styles.button, ...styles.saveButton }}
+            className="btn-pill-primary"
           >
             Enable & Save
           </button>

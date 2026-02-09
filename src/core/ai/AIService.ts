@@ -1,131 +1,199 @@
-import { AIConfig, AIProvider, AICompletionOptions } from './types';
-import * as Crypto from '../crypto';
+import { AIProvider, AIConfig, AICompletionOptions } from './types';
+import { MistralProvider } from './providers/MistralProvider';
+import { ModelCapabilityResolver } from './capabilities';
+import { literatureSearch, LiteratureToolOutput } from './tools';
 
-class OpenAIProvider implements AIProvider {
-    id = 'openai';
-    name = 'OpenAI';
-    private apiKey: string = '';
-    private endpoint: string = 'https://api.openai.com/v1/chat/completions';
+const STORAGE_KEY_CONFIG = 'cuboid_ai_config';
+const STORAGE_KEY_LOGS = 'cuboid_ai_logs';
 
-    configure(apiKey: string, endpoint?: string) {
-        this.apiKey = apiKey;
-        if (endpoint) this.endpoint = endpoint;
-    }
-
-    async generate(prompt: string, options?: AICompletionOptions): Promise<string> {
-        if (!this.apiKey) throw new Error('OpenAI API Key not configured');
-
-        const response = await fetch(this.endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [
-                    { role: 'system', content: options?.systemPrompt || 'You are a helpful assistant.' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: options?.temperature ?? 0.7,
-                max_tokens: options?.maxTokens
-            })
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`OpenAI Error: ${response.status} - ${error}`);
-        }
-
-        const data = await response.json();
-        return data.choices[0].message.content;
-    }
+interface InteractionLog {
+  timestamp: number;
+  provider: string;
+  prompt: string;
+  completionPreview: string;
+  isStream: boolean;
 }
 
+/**
+ * Singleton Service for managing AI interactions.
+ */
 class AIService {
-    private providers: Map<string, AIProvider> = new Map();
-    private activeProviderId: string = 'openai';
-    private config: AIConfig | null = null;
-    private configLoaded = false;
+  private static instance: AIService;
 
-    constructor() {
-        this.registerProvider(new OpenAIProvider());
+  private providers: Map<string, AIProvider> = new Map();
+  private activeProviderId: string | null = null;
+  private config: AIConfig;
+  private capabilityResolver = new ModelCapabilityResolver();
+
+  private constructor() {
+    // Load configuration from localStorage
+    this.config = this.loadConfig();
+
+    // Initialize default providers if keys exist
+    this.initializeProviders();
+  }
+
+  public static getInstance(): AIService {
+    if (!AIService.instance) {
+      AIService.instance = new AIService();
+    }
+    return AIService.instance;
+  }
+
+  private loadConfig(): AIConfig {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return { activeProvider: '', apiKeys: {} };
+    }
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY_CONFIG);
+      return stored ? JSON.parse(stored) : { activeProvider: '', apiKeys: {} };
+    } catch (e) {
+      console.error('Failed to load AI config', e);
+      return { activeProvider: '', apiKeys: {} };
+    }
+  }
+
+  private saveConfig(): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(this.config));
+      } catch (e) {
+        console.error('Failed to save AI config', e);
+      }
+    }
+  }
+
+  private logInteraction(log: InteractionLog): void {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+
+    try {
+      const logsStr = window.localStorage.getItem(STORAGE_KEY_LOGS);
+      let logs: InteractionLog[] = logsStr ? JSON.parse(logsStr) : [];
+
+      // Limit logs to last 50 entries
+      logs.push(log);
+      if (logs.length > 50) logs = logs.slice(-50);
+
+      window.localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
+    } catch (e) {
+      console.error('Failed to log interaction', e);
+    }
+  }
+
+  private initializeProviders(): void {
+    if (this.config.apiKeys.mistral) {
+      this.registerProvider(new MistralProvider(this.config.apiKeys.mistral));
+      if (!this.activeProviderId) {
+        this.setActiveProvider('mistral');
+      }
+    }
+  }
+
+  public registerProvider(provider: AIProvider): void {
+    this.providers.set(provider.id, provider);
+  }
+
+  public setActiveProvider(providerId: string): boolean {
+    if (this.providers.has(providerId)) {
+      this.activeProviderId = providerId;
+      this.config.activeProvider = providerId;
+      this.saveConfig();
+      return true;
+    }
+    return false;
+  }
+
+  public getActiveProvider(): AIProvider | null {
+    if (!this.activeProviderId) return null;
+    return this.providers.get(this.activeProviderId) || null;
+  }
+
+  public async getActiveCapabilities(model?: string) {
+    const provider = this.getActiveProvider();
+    if (!provider) return null;
+    const metadata = provider.getModelCapabilities ? await provider.getModelCapabilities(model) : null;
+    return this.capabilityResolver.resolve(provider.id, model, metadata);
+  }
+
+  public overrideCapabilities(model: string | undefined, patch: Parameters<ModelCapabilityResolver['override']>[2]) {
+    const provider = this.getActiveProvider();
+    if (!provider) return null;
+    return this.capabilityResolver.override(provider.id, model, patch);
+  }
+
+  public persistKey(providerId: string, apiKey: string): void {
+    this.config.apiKeys[providerId] = apiKey;
+    this.saveConfig();
+
+    // Re-initialize to update provider instance with new key
+    if (providerId === 'mistral') {
+      this.registerProvider(new MistralProvider(apiKey));
+    }
+  }
+
+  public isConfigured(): boolean {
+    return !!this.getActiveProvider();
+  }
+
+  public async generate(prompt: string, options?: AICompletionOptions): Promise<string> {
+    const provider = this.getActiveProvider();
+    if (!provider) {
+      throw new Error('No active AI provider configured. Please set an API key.');
     }
 
-    registerProvider(provider: AIProvider) {
-        this.providers.set(provider.id, provider);
+    try {
+      const result = await provider.generate(prompt, options);
+
+      this.logInteraction({
+        timestamp: Date.now(),
+        provider: provider.id,
+        prompt,
+        completionPreview: result.substring(0, 100) + (result.length > 100 ? '...' : ''),
+        isStream: false,
+      });
+
+      return result;
+    } catch (error) {
+      console.error('AI Generation failed:', error);
+      throw error;
+    }
+  }
+
+  public async runLiteratureSearch(query: string): Promise<LiteratureToolOutput> {
+    return literatureSearch(query);
+  }
+
+  public async *generateStream(prompt: string, options?: AICompletionOptions): AsyncGenerator<string> {
+    const provider = this.getActiveProvider();
+    if (!provider) {
+      throw new Error('No active AI provider configured. Please set an API key.');
     }
 
-    setActiveProvider(id: string) {
-        if (this.providers.has(id)) {
-            this.activeProviderId = id;
-        }
+    let fullContent = '';
+    let hasError = false;
+
+    try {
+      for await (const chunk of provider.generateStream(prompt, options)) {
+        fullContent += chunk;
+        yield chunk;
+      }
+    } catch (error) {
+      hasError = true;
+      console.error('AI Streaming failed:', error);
+      throw error;
+    } finally {
+      if (!hasError && fullContent.length > 0) {
+        this.logInteraction({
+          timestamp: Date.now(),
+          provider: provider.id,
+          prompt,
+          completionPreview: fullContent.substring(0, 100) + (fullContent.length > 100 ? '...' : ''),
+          isStream: true,
+        });
+      }
     }
-
-    // Legacy (Plaintext) - Removed/Deprecated
-    // getConfig() { return this.config; }
-
-    async configure(config: AIConfig) {
-        this.config = config;
-        const provider = this.providers.get(config.providerId);
-        if (provider) {
-            provider.configure(config.apiKey, config.endpoint);
-            this.activeProviderId = config.providerId;
-        }
-    }
-
-    async saveEncryptedConfig(config: AIConfig, masterKey: CryptoKey): Promise<void> {
-        // 1. Derive Config Key
-        // We use a static salt for the config just to separate it from document keys
-        // In production, we might want a unique salt per config, but static is fine for local-first
-        const salt = new TextEncoder().encode("cuboid_ai_config_salt_v1");
-        // Pad salt to 16 bytes if needed, or PBKDF2 handles it? 
-        // HKDF needs salt.
-        // Let's use PBKDF2 from masterKey? No, masterKey is HKDF-suitable.
-        // Use HKDF to derive subkey.
-        const configKey = await Crypto.deriveDocumentKey(masterKey, salt, new Uint8Array(0));
-
-        // 2. Encrypt
-        const json = JSON.stringify(config);
-        const { iv, ciphertext } = await Crypto.encrypt(configKey, json);
-
-        // 3. Store
-        localStorage.setItem('cuboid_ai_config_encrypted', Crypto.toBase64(ciphertext));
-        localStorage.setItem('cuboid_ai_config_iv', Crypto.toBase64(iv));
-
-        // Update in-memory
-        await this.configure(config);
-    }
-
-    async loadEncryptedConfig(masterKey: CryptoKey): Promise<AIConfig | null> {
-        try {
-            const encrypted = localStorage.getItem('cuboid_ai_config_encrypted');
-            const ivStr = localStorage.getItem('cuboid_ai_config_iv');
-
-            if (!encrypted || !ivStr) return null;
-
-            const salt = new TextEncoder().encode("cuboid_ai_config_salt_v1");
-            const configKey = await Crypto.deriveDocumentKey(masterKey, salt, new Uint8Array(0));
-
-            const ciphertext = Crypto.fromBase64(encrypted);
-            const iv = Crypto.fromBase64(ivStr);
-
-            const json = await Crypto.decrypt(configKey, iv, ciphertext);
-            const config = JSON.parse(json) as AIConfig;
-
-            await this.configure(config);
-            return config;
-        } catch (e) {
-            console.error("Failed to load encrypted AI config", e);
-            return null;
-        }
-    }
-
-    async generate(prompt: string, options?: AICompletionOptions): Promise<string> {
-        const provider = this.providers.get(this.activeProviderId);
-        if (!provider) throw new Error('Active AI provider not found');
-        return provider.generate(prompt, options);
-    }
+  }
 }
 
-export const aiService = new AIService();
+// Export singleton instance getter
+export const getAIService = () => AIService.getInstance();

@@ -1,0 +1,19 @@
+status: phase_2_ui_refinement
+goals:
+  - current: Stabilize Prism-style editor UX and interaction wiring
+  - pending: Deep polish pass for responsive/mobile and animation nuance
+constraints:
+  - local-first
+  - no-backend
+  - aesthetic: Charcoal (#0d0e0d), minimal chrome
+  - avoid regressions in auth/workspace routing
+decisions:
+  - editor_shell: Three-pane workspace with tabbed right rail (Preview/Assistant/Activity/Comments)
+  - interactions: Removed dead controls by wiring all visible editor/dashboard buttons
+  - showcase: Playwright visual artifacts stored under showcase/after
+risks:
+  - precision_gap: Visual fidelity still not 1:1 vs Prism screenshots
+  - ai_depth: Assistant/logs behaviors are currently local stubs, not backend-driven
+next_steps:
+  - Iterate typography density and spacing from screenshot diffs
+  - Add richer actionable logs/comments data flows from real compile/AI layers
