@@ -13,17 +13,24 @@
   --color-danger: #d64c4c;
   --color-success: #3fbf7f;
   --color-warning: #e1b84a;
+  --color-accent-strong: #006487;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
   --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, monospace;
 }
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    border-radius: 0 !important;
+  }
+
   body {
     @apply bg-charcoal-950 text-text-primary font-sans antialiased;
     overflow-x: hidden;
   }
 
-  /* Custom Scrollbar for "Serious Tool" feel */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -34,7 +41,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-charcoal-800 rounded-full;
+    @apply bg-charcoal-800;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -42,33 +49,80 @@
   }
 }
 
-/* Utilities */
+/* Layout surfaces */
 .panel {
-  @apply bg-charcoal-900 rounded-2xl;
+  @apply bg-charcoal-900 border border-white/[0.08];
 }
 
-.center-card {
-  @apply w-full max-w-[440px] rounded-2xl border border-white/[0.06] bg-charcoal-900 px-6 py-7 shadow-2xl shadow-black/40 sm:px-8 sm:py-8;
+.surface-card {
+  @apply w-full max-w-[440px] border border-white/[0.08] bg-charcoal-900 px-6 py-7 shadow-2xl shadow-black/40 sm:px-8 sm:py-8;
 }
 
-.input-pill {
-  @apply h-11 w-full rounded-full border border-white/[0.06] bg-charcoal-850 px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
+.surface-panel {
+  @apply border border-white/[0.08] bg-charcoal-900;
+}
+
+.surface-muted {
+  @apply border border-white/[0.08] bg-charcoal-850;
+}
+
+.surface-contrast {
+  @apply border border-white/[0.08] bg-charcoal-950;
+}
+
+/* Form controls */
+.input-field {
+  @apply h-11 w-full border border-white/[0.08] bg-charcoal-850 px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
+}
+
+.select-field {
+  @apply h-11 w-full border border-white/[0.08] bg-charcoal-850 px-4 text-sm text-text-primary outline-none transition-colors focus:border-accent;
+}
+
+.textarea-field {
+  @apply w-full resize-none border border-white/[0.08] bg-charcoal-850 p-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
 }
 
 .input-error-slot {
   @apply mt-1 block min-h-5 text-xs text-danger;
 }
 
-.btn-pill-primary {
-  @apply inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:opacity-50;
+/* Button system */
+.btn-primary {
+  @apply inline-flex h-11 items-center justify-center gap-2 border border-white bg-white px-5 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:opacity-50;
 }
 
-.btn-pill-secondary {
-  @apply inline-flex h-11 items-center justify-center gap-2 rounded-full bg-charcoal-850 px-5 text-sm font-medium text-text-primary transition-colors hover:bg-charcoal-800 disabled:opacity-50;
+.btn-secondary {
+  @apply inline-flex h-11 items-center justify-center gap-2 border border-white/[0.08] bg-charcoal-850 px-5 text-sm font-medium text-text-primary transition-colors hover:bg-charcoal-800 disabled:opacity-50;
 }
 
-.btn-pill-tertiary {
-  @apply inline-flex h-11 items-center justify-center rounded-full px-4 text-sm text-text-secondary transition-colors hover:bg-charcoal-850 hover:text-text-primary disabled:opacity-50;
+.btn-ghost {
+  @apply inline-flex h-11 items-center justify-center border border-transparent px-4 text-sm text-text-secondary transition-colors hover:border-white/[0.08] hover:bg-charcoal-850 hover:text-text-primary disabled:opacity-50;
+}
+
+.btn-danger {
+  @apply inline-flex h-11 items-center justify-center gap-2 border border-danger/50 bg-danger/15 px-5 text-sm font-medium text-danger transition-colors hover:bg-danger/25 disabled:opacity-50;
+}
+
+.btn-icon {
+  @apply inline-flex h-10 w-10 items-center justify-center border border-white/[0.08] bg-charcoal-850 text-text-secondary transition-colors hover:bg-charcoal-800 hover:text-text-primary disabled:opacity-50;
+}
+
+/* Lists and tabs */
+.selection-row {
+  @apply bg-charcoal-800;
+}
+
+.tab-button {
+  @apply border-b border-transparent px-1 pb-1 text-sm text-text-secondary transition-colors hover:text-text-primary;
+}
+
+.tab-button-active {
+  @apply border-b border-text-primary text-text-primary;
+}
+
+.badge-neutral {
+  @apply inline-flex items-center border border-white/[0.08] bg-charcoal-850 px-2 py-1 text-xs text-text-secondary;
 }
 
 .inline-notice-error {
@@ -83,42 +137,43 @@
   @apply text-sm text-warning;
 }
 
-.selection-pill {
-  @apply rounded-xl bg-charcoal-800;
-}
-
 .line-decoration-error {
-  box-shadow: inset 2px 0 0 #d64c4c;
+  box-shadow: inset 2px 0 0 var(--color-danger);
 }
 
 .line-decoration-warning {
-  box-shadow: inset 2px 0 0 #e1b84a;
+  box-shadow: inset 2px 0 0 var(--color-warning);
 }
 
 .comment-range-highlight {
-  background: rgba(0, 151, 213, 0.12);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 .gutter-error {
-  background: radial-gradient(circle, #d64c4c 45%, transparent 46%) center/10px 10px no-repeat;
+  background: radial-gradient(circle, var(--color-danger) 45%, transparent 46%) center/10px 10px no-repeat;
 }
 
 .gutter-warning {
-  background: radial-gradient(circle, #e1b84a 45%, transparent 46%) center/10px 10px no-repeat;
+  background: radial-gradient(circle, var(--color-warning) 45%, transparent 46%) center/10px 10px no-repeat;
 }
 
 .gutter-comment {
-  background: radial-gradient(circle, #0097d5 45%, transparent 46%) center/10px 10px no-repeat;
+  background: radial-gradient(circle, var(--color-accent) 45%, transparent 46%) center/10px 10px no-repeat;
 }
 
 .ghost-diff-proposed {
-  background: rgba(63, 191, 127, 0.12);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
 }
 
 .ghost-diff-accepted {
-  background: rgba(63, 191, 127, 0.2);
+  background: color-mix(in srgb, var(--color-success) 20%, transparent);
 }
 
 .ghost-diff-rejected {
-  background: rgba(214, 76, 76, 0.16);
+  background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-charcoal-800) var(--color-charcoal-950);
 }

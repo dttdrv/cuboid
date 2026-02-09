@@ -45,17 +45,17 @@ const CreateWorkspaceScreen: React.FC = () => {
           />
         </div>
 
-        <div className="mt-2 flex rounded-full bg-charcoal-850 p-1">
+        <div className="mt-2 flex border border-white/[0.08] bg-charcoal-850 p-1">
           <button
             type="button"
-            className={`h-9 flex-1 rounded-full text-sm ${type === 'Personal' ? 'bg-charcoal-800 text-text-primary' : 'text-text-secondary'}`}
+            className={`h-9 flex-1 border border-transparent text-sm ${type === 'Personal' ? 'border-white/[0.08] bg-charcoal-800 text-text-primary' : 'text-text-secondary hover:border-white/[0.08]'}`}
             onClick={() => setType('Personal')}
           >
             Personal
           </button>
           <button
             type="button"
-            className={`h-9 flex-1 rounded-full text-sm ${type === 'Team' ? 'bg-charcoal-800 text-text-primary' : 'text-text-secondary'}`}
+            className={`h-9 flex-1 border border-transparent text-sm ${type === 'Team' ? 'border-white/[0.08] bg-charcoal-800 text-text-primary' : 'text-text-secondary hover:border-white/[0.08]'}`}
             onClick={() => setType('Team')}
           >
             Team
@@ -63,10 +63,10 @@ const CreateWorkspaceScreen: React.FC = () => {
         </div>
 
         <div className="mt-6 flex items-center gap-3">
-          <button type="button" className="btn-pill-primary flex-1" onClick={handleCreate}>
+          <button type="button" className="btn-primary flex-1" onClick={handleCreate}>
             Create workspace
           </button>
-          <button type="button" className="btn-pill-tertiary" onClick={() => navigate('/workspaces/select')}>
+          <button type="button" className="btn-ghost" onClick={() => navigate('/workspaces/select')}>
             Back
           </button>
         </div>

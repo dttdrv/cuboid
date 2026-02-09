@@ -1,93 +1,366 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  ChevronDown, ChevronLeft, ChevronRight, Cog, Download, File, FileWarning, Image,
-  LayoutPanelLeft, MoreHorizontal, Pencil, RefreshCw, Search, Send, Settings, Sparkles, Waves, Plus, MessageSquare,
-} from 'lucide-react';
-import MonacoEditor from './editor/MonacoEditor';
-import PdfViewer from './PdfViewer';
-import { parseSections } from '../utils/parseSections';
-import { TeXCompiler } from '../core/tex-compiler';
+import { ProposedAction } from '../core/ai/agenticTypes';
+import { activityStore } from '../core/activity/ActivityStore';
+import { CompileRunMeta, CompileRunState, CompileTrigger } from '../core/compile/types';
+import { ActivityEvent, DiagnosticItem, UiSessionState } from '../core/data/types';
+import { PrimaryPane, RightDrawerMode } from '../core/editor/types';
 import { useDataLayer } from '../core/hooks/useDataLayer';
-import { useAuth } from '../core/auth/AuthProvider';
-import { DiagnosticItem } from '../core/data/types';
+import { TeXCompiler } from '../core/tex-compiler';
+import { parseSections } from '../utils/parseSections';
+import EditorShell from './editor-shell/EditorShell';
+import { DrawerComment, ProjectInfoStats } from './editor-shell/contracts';
 
 const DEFAULT_LATEX = `\\documentclass{article}
+\\usepackage[margin=1in]{geometry}
 \\begin{document}
-\\section*{What is Prism?}
-\\textbf{Prism} is an AI-powered \\LaTeX{} editor for writing scientific documents.
-\\section*{Features}
-Prism includes ChatGPT directly in the editor and can access your project.
+\\section*{Introduction}
+Write your paper here.
 \\end{document}`;
 
-type CompileState = 'idle' | 'compiling' | 'success' | 'error';
-type RightTab = 'preview' | 'assistant' | 'logs' | 'comments';
-type AssistantChange = { id: string; start: number; end: number; title: string; status: 'proposed' | 'accepted' | 'rejected' };
-type CommentThread = { id: string; body: string; start: number; end: number; resolved: boolean };
+const UI_SESSION_KEY = 'cuboid_editor_ui_session_v2';
+
+const readUiSession = (projectId: string): UiSessionState | null => {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const all = JSON.parse(window.localStorage.getItem(UI_SESSION_KEY) || '{}') as Record<string, UiSessionState>;
+    return all[projectId] || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeUiSession = (state: UiSessionState) => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const all = JSON.parse(window.localStorage.getItem(UI_SESSION_KEY) || '{}') as Record<string, UiSessionState>;
+    all[state.projectId] = state;
+    window.localStorage.setItem(UI_SESSION_KEY, JSON.stringify(all));
+  } catch {
+    // no-op
+  }
+};
 
 const parseCompileDiagnostics = (log: string, fileName: string): DiagnosticItem[] => {
   const lines = log.split('\n');
   const diagnostics: DiagnosticItem[] = [];
   let fallbackLine = 1;
+
   lines.forEach((line, index) => {
     const lineMatch = line.match(/^l\.(\d+)/);
     if (lineMatch) fallbackLine = Number(lineMatch[1]);
-    if (line.startsWith('! ')) diagnostics.push({ id: `e-${index}`, severity: 'error', fileId: fileName, line: fallbackLine, column: 1, message: line.replace(/^!\s*/, '') });
-    if (line.includes('Warning')) diagnostics.push({ id: `w-${index}`, severity: 'warning', fileId: fileName, line: fallbackLine, column: 1, message: line });
+    if (line.startsWith('! ')) {
+      diagnostics.push({
+        id: `compile-e-${index}`,
+        severity: 'error',
+        fileId: fileName,
+        line: fallbackLine,
+        column: 1,
+        message: line.replace(/^!\s*/, ''),
+      });
+    } else if (line.includes('Warning')) {
+      diagnostics.push({
+        id: `compile-w-${index}`,
+        severity: 'warning',
+        fileId: fileName,
+        line: fallbackLine,
+        column: 1,
+        message: line,
+      });
+    }
   });
+
   return diagnostics;
+};
+
+const inferIntent = (prompt: string): ProposedAction['intent'] => {
+  const lower = prompt.toLowerCase();
+  if (lower.includes('compile') || lower.includes('error') || lower.includes('fix')) return 'compile_fix';
+  if (lower.includes('analyze') || lower.includes('summary')) return 'analyze';
+  if (lower.includes('edit') || lower.includes('rewrite') || lower.includes('change')) return 'edit';
+  return 'ask';
+};
+
+const computeProjectInfoStats = (content: string): ProjectInfoStats => {
+  const words = (content.match(/[A-Za-z0-9_]+/g) || []).length;
+  const sections = parseSections(content).length;
+  const figures = (content.match(/\\includegraphics|\\begin\{figure\}/g) || []).length;
+  const mathInline = (content.match(/\$(?!\$)([^$\n]+)\$/g) || []).length;
+  const mathDisplay = (content.match(/\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]/g) || []).length;
+
+  return {
+    words,
+    headings: sections,
+    figures,
+    mathInline,
+    mathDisplay,
+  };
 };
 
 export const EditorPage: React.FC = () => {
   const navigate = useNavigate();
   const { workspaceId, projectId } = useParams<{ workspaceId: string; projectId: string }>();
   const { listProjects, getDocument, saveDocument } = useDataLayer();
-  const { workspaces } = useAuth();
   const compiler = useMemo(() => new TeXCompiler(), []);
-  const hydratedRef = useRef(false);
 
-  const [projectName, setProjectName] = useState('New Project');
-  const [content, setContent] = useState(DEFAULT_LATEX);
+  const hydratedRef = useRef(false);
+  const contentRef = useRef(DEFAULT_LATEX);
+  const compileTimerRef = useRef<number | null>(null);
+  const compileInFlightRef = useRef(false);
+  const pendingTriggerRef = useRef<CompileTrigger | null>(null);
+
+  const [projectName, setProjectName] = useState('Untitled Project');
   const [documentTitle, setDocumentTitle] = useState('main.tex');
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [compileState, setCompileState] = useState<CompileState>('idle');
+  const [content, setContent] = useState(DEFAULT_LATEX);
+  const [saveNotice, setSaveNotice] = useState('Loading...');
+  const [compileState, setCompileState] = useState<CompileRunState>('idle');
+  const [compileMeta, setCompileMeta] = useState<CompileRunMeta | null>(null);
   const [compileLog, setCompileLog] = useState('');
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([]);
-  const [saveNotice, setSaveNotice] = useState('Loading...');
-  const [assistantPrompt, setAssistantPrompt] = useState('');
-  const [selection, setSelection] = useState({ start: 1, end: 1 });
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [primaryPane, setPrimaryPane] = useState<PrimaryPane>('composer');
+  const [layoutMode, setLayoutMode] = useState<'split' | 'focus_composer' | 'focus_editor' | 'focus_preview'>('split');
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerMode, setDrawerMode] = useState<RightDrawerMode>('activity');
+  const [prompt, setPrompt] = useState('');
+  const [selection, setSelection] = useState({ startLine: 1, endLine: 1 });
   const [revealLine, setRevealLine] = useState<number | null>(null);
-  const [leftTab, setLeftTab] = useState<'files' | 'chats'>('files');
-  const [rightTab, setRightTab] = useState<RightTab>('preview');
-  const [showTools, setShowTools] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
-  const [imageMode, setImageMode] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const [changes, setChanges] = useState<AssistantChange[]>([]);
-  const [comments, setComments] = useState<CommentThread[]>([]);
+  const [actions, setActions] = useState<ProposedAction[]>([]);
+  const [comments, setComments] = useState<DrawerComment[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
 
   const sections = useMemo(() => parseSections(content), [content]);
-  const activeWorkspace = workspaces.find((workspace) => workspace.id === workspaceId);
-  const errorCount = diagnostics.filter((item) => item.severity === 'error').length;
-  const warningCount = diagnostics.filter((item) => item.severity === 'warning').length;
+  const projectInfo = useMemo(() => computeProjectInfoStats(content), [content]);
+
+  const appendActivity = useCallback((event: Omit<ActivityEvent, 'id' | 'timestamp'>) => {
+    if (!projectId) return;
+    const nextEvent: ActivityEvent = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      ...event,
+    };
+    activityStore.append(projectId, nextEvent);
+    setActivityEvents(activityStore.read(projectId));
+  }, [projectId]);
+
+  const jumpToLine = useCallback((line: number) => {
+    setRevealLine(line);
+    setPrimaryPane('editor');
+    window.setTimeout(() => setRevealLine(null), 30);
+  }, []);
+
+  const startCompile = useCallback(async (trigger: CompileTrigger) => {
+    if (!projectId) return;
+    compileInFlightRef.current = true;
+    pendingTriggerRef.current = null;
+
+    const startedAt = new Date();
+    setCompileState('compiling');
+    setCompileMeta({
+      trigger,
+      startedAt: startedAt.toISOString(),
+      cancelled: false,
+    });
+    appendActivity({
+      kind: 'compile_start',
+      title: `Compile started (${trigger})`,
+      detail: `Compiling ${documentTitle}`,
+      fileId: documentTitle,
+    });
+
+    const result = await compiler.compile(contentRef.current);
+    const finishedAt = new Date();
+
+    const parsedDiagnostics = parseCompileDiagnostics(result.log || '', documentTitle);
+    setCompileLog(result.log || '[no logs]');
+    setDiagnostics(parsedDiagnostics);
+
+    if (result.success && result.pdf) {
+      setPdfBlob(result.pdf);
+      setCompileState('success');
+      setCompileMeta((prev) => ({
+        trigger: prev?.trigger || trigger,
+        startedAt: prev?.startedAt || startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        cancelled: false,
+      }));
+      appendActivity({
+        kind: 'compile_end',
+        title: 'Compile succeeded',
+        detail: `PDF updated with ${parsedDiagnostics.length} diagnostics`,
+        fileId: documentTitle,
+      });
+      if (primaryPane !== 'preview') setPrimaryPane('preview');
+    } else {
+      setCompileState('error');
+      setCompileMeta((prev) => ({
+        trigger: prev?.trigger || trigger,
+        startedAt: prev?.startedAt || startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        cancelled: false,
+      }));
+      setDrawerOpen(true);
+      setDrawerMode('logs');
+      appendActivity({
+        kind: 'error',
+        title: 'Compile failed',
+        detail: parsedDiagnostics[0]?.message || 'Compilation failed',
+        fileId: documentTitle,
+        line: parsedDiagnostics[0]?.line,
+      });
+      if (parsedDiagnostics[0]) jumpToLine(parsedDiagnostics[0].line);
+    }
+
+    compileInFlightRef.current = false;
+    if (pendingTriggerRef.current) {
+      const nextTrigger = pendingTriggerRef.current;
+      pendingTriggerRef.current = null;
+      setCompileState('queued');
+      void startCompile(nextTrigger);
+    }
+  }, [appendActivity, compiler, documentTitle, jumpToLine, primaryPane, projectId]);
+
+  const queueCompile = useCallback((trigger: CompileTrigger) => {
+    if (trigger === 'manual' && compileTimerRef.current) {
+      window.clearTimeout(compileTimerRef.current);
+      compileTimerRef.current = null;
+    }
+
+    if (compileInFlightRef.current) {
+      pendingTriggerRef.current = trigger;
+      setCompileState('queued');
+      appendActivity({
+        kind: 'reasoning_step',
+        title: 'Compile queued',
+        detail: `Queued ${trigger} compile while another run is in progress`,
+      });
+      return;
+    }
+
+    void startCompile(trigger);
+  }, [appendActivity, startCompile]);
+
+  const submitPrompt = useCallback(() => {
+    const text = prompt.trim();
+    if (!text) return;
+    const action: ProposedAction = {
+      id: crypto.randomUUID(),
+      intent: inferIntent(text),
+      title: text,
+      summary: 'Generated from your composer request. Review and apply explicitly.',
+      startLine: selection.startLine,
+      endLine: selection.endLine,
+      status: 'proposed',
+      createdAt: new Date().toISOString(),
+    };
+    setActions((prev) => [action, ...prev]);
+    setPrompt('');
+    appendActivity({
+      kind: 'changeset_created',
+      title: 'Agent proposed action',
+      detail: action.title,
+      line: selection.startLine,
+    });
+  }, [appendActivity, prompt, selection.endLine, selection.startLine]);
+
+  const applyAction = useCallback((actionId: string) => {
+    setActions((prev) => prev.map((item) => (item.id === actionId ? { ...item, status: 'accepted' } : item)));
+    const selected = actions.find((item) => item.id === actionId);
+    if (selected) {
+      setContent((prev) => {
+        const lines = prev.split('\n');
+        const insertAt = Math.max(0, selected.startLine - 1);
+        lines.splice(insertAt, 0, `% [agent] ${selected.title}`);
+        return lines.join('\n');
+      });
+      appendActivity({
+        kind: 'changeset_applied',
+        title: 'Applied action',
+        detail: selected.title,
+        line: selected.startLine,
+      });
+      jumpToLine(selected.startLine);
+    }
+  }, [actions, appendActivity, jumpToLine]);
+
+  const rejectAction = useCallback((actionId: string) => {
+    const selected = actions.find((item) => item.id === actionId);
+    setActions((prev) => prev.map((item) => (item.id === actionId ? { ...item, status: 'rejected' } : item)));
+    if (selected) {
+      appendActivity({
+        kind: 'reasoning_step',
+        title: 'Rejected action',
+        detail: selected.title,
+      });
+    }
+  }, [actions, appendActivity]);
+
+  const addComment = useCallback(() => {
+    const body = commentDraft.trim();
+    if (!body) return;
+    const next: DrawerComment = {
+      id: crypto.randomUUID(),
+      body,
+      startLine: selection.startLine,
+      endLine: selection.endLine,
+      createdAt: new Date().toISOString(),
+    };
+    setComments((prev) => [next, ...prev]);
+    setCommentDraft('');
+    appendActivity({
+      kind: 'tool_result',
+      title: 'Comment added',
+      detail: `L${next.startLine}-L${next.endLine}`,
+      line: next.startLine,
+    });
+  }, [appendActivity, commentDraft, selection.endLine, selection.startLine]);
 
   useEffect(() => {
-    const load = async () => {
+    const loadProject = async () => {
       if (!projectId) return;
       const projects = await listProjects(workspaceId);
-      const current = projects.find((item) => item.id === projectId);
-      if (current) setProjectName(current.name);
+      const activeProject = projects.find((item) => item.id === projectId);
+      if (activeProject) setProjectName(activeProject.name);
+
       const doc = await getDocument(projectId);
       if (doc?.content) {
         setContent(doc.content);
+        contentRef.current = doc.content;
         setDocumentTitle(doc.title || 'main.tex');
+      } else {
+        setContent(DEFAULT_LATEX);
+        contentRef.current = DEFAULT_LATEX;
+        setDocumentTitle('main.tex');
       }
+
+      const sessionState = readUiSession(projectId);
+      if (sessionState) {
+        setPrimaryPane(sessionState.primaryPane);
+        setLayoutMode(sessionState.layoutMode);
+        setDrawerMode(sessionState.rightDrawerMode);
+        setDrawerOpen(sessionState.rightDrawerOpen);
+      }
+
+      setActivityEvents(activityStore.read(projectId));
       hydratedRef.current = true;
       setSaveNotice('All changes saved');
+      appendActivity({
+        kind: 'reasoning_step',
+        title: 'Editor session loaded',
+        detail: activeProject?.name || 'Untitled project',
+      });
+      queueCompile('retry');
     };
-    void load();
-  }, [projectId, workspaceId, listProjects, getDocument]);
+
+    void loadProject();
+  }, [appendActivity, getDocument, listProjects, projectId, queueCompile, workspaceId]);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
 
   useEffect(() => {
     if (!projectId || !hydratedRef.current) return;
@@ -96,206 +369,134 @@ export const EditorPage: React.FC = () => {
       const ok = await saveDocument(projectId, content);
       setSaveNotice(ok ? 'All changes saved' : 'Save failed');
     }, 650);
+
     return () => window.clearTimeout(timer);
-  }, [projectId, content, saveDocument]);
+  }, [content, projectId, saveDocument]);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2200);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const compileNow = async () => {
-    if (compileState === 'compiling') return;
-    setCompileState('compiling');
-    const result = await compiler.compile(content);
-    setCompileLog(result.log || '[no logs]');
-    const parsed = parseCompileDiagnostics(result.log || '', documentTitle);
-    setDiagnostics(parsed);
-    if (result.success && result.pdf) {
-      setPdfBlob(result.pdf);
-      setCompileState('success');
-    } else {
-      setCompileState('error');
-      setRightTab('logs');
+    if (!projectId || !hydratedRef.current) return;
+    if (compileTimerRef.current) {
+      window.clearTimeout(compileTimerRef.current);
     }
-  };
+    setCompileState((current) => (current === 'compiling' ? 'queued' : 'queued'));
+    compileTimerRef.current = window.setTimeout(() => {
+      queueCompile('auto');
+    }, 1200);
 
-  const jumpToLine = (line: number) => {
-    setRevealLine(line);
-    setTimeout(() => setRevealLine(null), 30);
-  };
+    return () => {
+      if (compileTimerRef.current) {
+        window.clearTimeout(compileTimerRef.current);
+      }
+    };
+  }, [content, projectId, queueCompile]);
 
-  const sendPrompt = () => {
-    const prompt = assistantPrompt.trim();
-    if (!prompt) return;
-    const id = `chg-${Date.now()}`;
-    setChanges((prev) => [{ id, start: selection.start, end: selection.end, title: prompt, status: 'proposed' }, ...prev]);
-    setAssistantPrompt('');
-    setRightTab('assistant');
-    setToast('Assistant generated a proposed change');
-  };
+  useEffect(() => {
+    if (!projectId || !hydratedRef.current) return;
+    writeUiSession({
+      projectId,
+      workspaceId,
+      primaryPane,
+      layoutMode,
+      rightDrawerMode: drawerMode,
+      rightDrawerOpen: drawerOpen,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [drawerMode, drawerOpen, layoutMode, primaryPane, projectId, workspaceId]);
 
-  const addComment = () => {
-    const body = commentDraft.trim();
-    if (!body) return;
-    setComments((prev) => [{ id: `c-${Date.now()}`, body, start: selection.start, end: selection.end, resolved: false }, ...prev]);
-    setCommentDraft('');
-    setToast('Comment added');
-  };
+  useEffect(() => {
+    return () => {
+      if (compileTimerRef.current) {
+        window.clearTimeout(compileTimerRef.current);
+      }
+    };
+  }, []);
 
-  if (!workspaceId || !projectId) return <div className="flex min-h-screen items-center justify-center bg-charcoal-950 text-text-secondary">Invalid route.</div>;
+  if (!workspaceId || !projectId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-charcoal-950 text-text-secondary">
+        Invalid route
+      </div>
+    );
+  }
+
+  const inlineHunks = actions.map((action) => ({
+    id: action.id,
+    startLine: action.startLine,
+    endLine: action.endLine,
+    status: action.status,
+  }));
 
   return (
-    <div className="min-h-screen bg-black p-2 text-text-primary">
-      {toast && <div className="fixed left-1/2 top-4 z-40 -translate-x-1/2 rounded-full border border-white/[0.08] bg-charcoal-900 px-4 py-2 text-xs text-text-secondary">{toast}</div>}
-      <div className="mx-auto grid min-h-[calc(100vh-1rem)] max-w-[1600px] grid-cols-[280px_1fr_650px] gap-2 rounded-2xl border border-white/[0.05] bg-[#050506] p-2">
-        <aside className="flex min-h-0 flex-col rounded-2xl bg-[#0e0f12]">
-          <div className="flex items-center justify-between px-3 pt-3 text-text-muted">
-            <button type="button" onClick={() => navigate(`/app/${workspaceId}/projects`)} className="rounded-full border border-white/[0.08] px-3 py-1 text-xs hover:bg-charcoal-850">Back to projects</button>
-            <div className="flex items-center gap-2">
-              <button type="button" className="rounded-lg p-2 hover:bg-charcoal-850"><Cog size={16} /></button>
-              <button type="button" className="rounded-lg p-2 hover:bg-charcoal-850"><Settings size={16} /></button>
-              <button type="button" className="rounded-lg p-2 hover:bg-charcoal-850"><LayoutPanelLeft size={16} /></button>
-            </div>
-          </div>
-          <div className="px-4 pt-4">
-            <div className="flex items-center justify-between">
-              <p className="truncate text-[40px] leading-none text-white/90">{projectName}</p>
-              <button type="button" className="rounded-lg p-1 hover:bg-charcoal-850"><ChevronDown size={15} /></button>
-            </div>
-            <button type="button" onClick={() => setToast('Share link copied')} className="mt-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-black">Share</button>
-          </div>
-          <div className="mt-4 border-b border-white/[0.06] px-3 pb-2">
-            <div className="flex items-center gap-4 text-[15px]">
-              <button type="button" onClick={() => setLeftTab('files')} className={leftTab === 'files' ? 'border-b border-white pb-1 text-white' : 'pb-1 text-text-secondary'}>Files</button>
-              <button type="button" onClick={() => setLeftTab('chats')} className={leftTab === 'chats' ? 'border-b border-white pb-1 text-white' : 'pb-1 text-text-secondary'}>Chats</button>
-              <button type="button" className="ml-auto rounded-lg p-1 hover:bg-charcoal-850"><Search size={18} /></button>
-              <button type="button" onClick={() => setToast('New file action wired')} className="rounded-lg p-1 hover:bg-charcoal-850"><Plus size={18} /></button>
-            </div>
-          </div>
-          <div className="space-y-1 px-3 py-4">
-            <button type="button" className="w-full rounded-xl px-3 py-2 text-left text-text-secondary hover:bg-charcoal-850">diagram.jpg</button>
-            <button type="button" className="w-full rounded-xl bg-charcoal-850 px-3 py-2 text-left text-white">{documentTitle}</button>
-          </div>
-          <div className="mt-auto border-t border-white/[0.06] px-3 py-3">
-            <p className="mb-2 text-[18px] text-text-secondary">Outline</p>
-            <div className="max-h-44 space-y-1 overflow-y-auto">
-              {sections.map((section) => (
-                <button key={`${section.line}-${section.title}`} type="button" onClick={() => jumpToLine(section.line)} className="w-full truncate rounded-lg px-2 py-1 text-left text-xs text-text-muted hover:bg-charcoal-850 hover:text-white">*{section.title}</button>
-              ))}
-            </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-text-muted"><span>Connected</span><span>{saveNotice}</span></div>
-          </div>
-        </aside>
-
-        <section className="relative min-h-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-black">
-          <div className="flex h-14 items-center justify-between border-b border-white/[0.06] px-3">
-            <div className="flex items-center gap-2">
-              <button type="button" className="rounded-lg p-2 text-text-muted hover:bg-charcoal-850"><Pencil size={16} /></button>
-              <div className="rounded-2xl border border-white/40 px-4 py-1 text-sm text-white"><File className="mr-2 inline" size={14} />{documentTitle}</div>
-            </div>
-            <div className="relative">
-              <button type="button" onClick={() => setShowTools((v) => !v)} className="inline-flex items-center gap-2 rounded-2xl bg-[#013a93] px-4 py-2 text-sm text-white"><Sparkles size={14} />Tools</button>
-              {showTools && (
-                <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-white/[0.08] bg-charcoal-900 p-2 shadow-2xl shadow-black/50">
-                  <button type="button" onClick={() => void compileNow()} className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-charcoal-850">Compile now</button>
-                  <button type="button" onClick={() => setRightTab('assistant')} className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-charcoal-850">Open assistant</button>
-                  <button type="button" onClick={() => setToast('Download wired from preview toolbar')} className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-charcoal-850">Download PDF</button>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="h-[calc(100%-7.5rem)]">
-            <MonacoEditor
-              value={content}
-              onChange={setContent}
-              revealLine={revealLine}
-              onSelectionChange={(start, end) => setSelection({ start, end })}
-              markers={diagnostics.map((item) => ({ startLineNumber: item.line, endLineNumber: item.line, startColumn: 1, endColumn: 2, message: item.message, severity: item.severity === 'error' ? 8 : 4 }))}
-              inlineHunks={changes.map((change) => ({ id: change.id, startLine: change.start, endLine: change.end, status: change.status }))}
-              onResolveHunk={(id, action) => setChanges((prev) => prev.map((item) => item.id === id ? { ...item, status: action === 'accept' ? 'accepted' : 'rejected' } : item))}
-            />
-          </div>
-          <div className="absolute bottom-3 left-4 right-4 rounded-full border border-white/[0.08] bg-[#131418] px-5 py-2 shadow-2xl shadow-black/50">
-            <div className="flex items-center gap-3">
-              <input value={assistantPrompt} onChange={(event) => setAssistantPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); sendPrompt(); } }} placeholder="Ask anything" className="flex-1 bg-transparent text-[18px] text-text-primary outline-none placeholder:text-text-muted" />
-              <button type="button" onClick={() => setImageMode((prev) => !prev)} className={`rounded-lg p-2 hover:bg-charcoal-850 ${imageMode ? 'text-accent' : 'text-text-muted'}`}><Image size={20} /></button>
-              <button type="button" onClick={() => setVoiceMode((prev) => !prev)} className={`rounded-lg p-2 hover:bg-charcoal-850 ${voiceMode ? 'text-accent' : 'text-text-muted'}`}><Waves size={20} /></button>
-              <button type="button" onClick={sendPrompt} className="rounded-lg p-2 text-text-muted hover:bg-charcoal-850"><Send size={20} /></button>
-            </div>
-          </div>
-        </section>
-
-        <aside className="min-h-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-black">
-          <div className="flex h-14 items-center justify-between border-b border-white/[0.06] px-4">
-            <div className="flex items-center gap-3">
-              <button type="button" onClick={() => void compileNow()} className="rounded-lg p-1 text-text-muted hover:bg-charcoal-850"><RefreshCw size={20} className={compileState === 'compiling' ? 'animate-spin' : ''} /></button>
-              <button type="button" onClick={() => void compileNow()} className="text-white hover:text-accent">{compileState === 'compiling' ? 'Compiling...' : 'Compile'}</button>
-              <button type="button" onClick={() => setRightTab('logs')} className={`rounded-full px-3 py-1 text-xs ${compileState === 'success' ? 'bg-success/20 text-success' : compileState === 'error' ? 'bg-danger/20 text-danger' : 'bg-charcoal-850 text-text-secondary'}`}>{compileState}</button>
-            </div>
-            <div className="flex items-center gap-4 text-text-secondary">
-              <span className="border-b-2 border-white pb-1 text-white">01</span><span>of 01</span>
-              <select className="rounded-lg border border-white/[0.16] bg-black px-2 py-1 text-white"><option>Zoom to fit</option><option>100%</option></select>
-              <button type="button" onClick={() => setToast('Download action is wired')} className="rounded-lg p-1 hover:bg-charcoal-850"><Download size={18} /></button>
-              <button type="button" onClick={() => setToast('More menu opened')} className="rounded-lg p-1 hover:bg-charcoal-850"><MoreHorizontal size={18} /></button>
-            </div>
-          </div>
-          <div className="border-b border-white/[0.06] px-3 py-2 text-sm">
-            <div className="flex gap-2">
-              {(['preview', 'assistant', 'logs', 'comments'] as RightTab[]).map((tab) => (
-                <button key={tab} type="button" onClick={() => setRightTab(tab)} className={`rounded-full px-3 py-1 ${rightTab === tab ? 'bg-charcoal-850 text-white' : 'text-text-secondary hover:bg-charcoal-850'}`}>{tab === 'logs' ? 'Activity' : tab[0].toUpperCase() + tab.slice(1)}</button>
-              ))}
-            </div>
-          </div>
-          <div className="h-[calc(100%-11rem)] overflow-y-auto">
-            {rightTab === 'preview' && <PdfViewer pdf={pdfBlob} onCompileNow={() => void compileNow()} />}
-            {rightTab === 'assistant' && (
-              <div className="space-y-3 p-4 text-sm">
-                <div className="rounded-xl border border-white/[0.06] bg-charcoal-900/60 p-3 text-text-secondary">Suggested prompts: Fix compile errors, Generate abstract, Explain theorem.</div>
-                {changes.length === 0 ? <p className="text-text-muted">No proposed changes yet.</p> : changes.map((change) => (
-                  <div key={change.id} className="rounded-xl border border-white/[0.06] bg-charcoal-900/60 p-3">
-                    <p className="text-xs text-text-muted">L{change.start}-L{change.end}</p><p>{change.title}</p>
-                    <div className="mt-2 flex gap-2">
-                      <button type="button" onClick={() => jumpToLine(change.start)} className="rounded-full border border-white/[0.08] px-2 py-1 text-xs">View diff</button>
-                      <button type="button" onClick={() => setChanges((prev) => prev.map((c) => c.id === change.id ? { ...c, status: 'accepted' } : c))} className="rounded-full bg-success/20 px-2 py-1 text-xs text-success">Accept</button>
-                      <button type="button" onClick={() => setChanges((prev) => prev.map((c) => c.id === change.id ? { ...c, status: 'rejected' } : c))} className="rounded-full bg-danger/20 px-2 py-1 text-xs text-danger">Reject</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {rightTab === 'logs' && (
-              <div className="space-y-3 p-4">
-                <div className="rounded-xl border border-white/[0.06] bg-charcoal-900/60 p-3 text-sm text-text-secondary">
-                  <p>Errors: {errorCount} · Warnings: {warningCount}</p>
-                  {diagnostics.map((item) => (<button key={item.id} type="button" onClick={() => jumpToLine(item.line)} className="mt-1 block w-full rounded-lg px-2 py-1 text-left text-xs hover:bg-charcoal-850">{item.fileId}:{item.line} {item.message}</button>))}
-                </div>
-                <details className="rounded-xl border border-white/[0.06] bg-charcoal-900/60 p-3 text-sm text-text-secondary"><summary>Raw logs</summary><pre className="mt-2 max-h-48 overflow-y-auto rounded-lg bg-black/30 p-2 text-xs">{compileLog || '[no logs]'}</pre></details>
-              </div>
-            )}
-            {rightTab === 'comments' && (
-              <div className="space-y-3 p-4">
-                <div className="rounded-xl border border-white/[0.06] bg-charcoal-900/60 p-3">
-                  <p className="mb-2 text-sm text-text-secondary">Anchor: L{selection.start}-L{selection.end}</p>
-                  <textarea value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} className="h-20 w-full resize-none rounded-lg border border-white/[0.08] bg-charcoal-850 p-2 text-sm" />
-                  <div className="mt-2 flex justify-end"><button type="button" onClick={addComment} className="rounded-full bg-white px-3 py-1 text-xs text-black">Add comment</button></div>
-                </div>
-                {comments.map((comment) => (<div key={comment.id} className="rounded-xl border border-white/[0.06] bg-charcoal-900/60 p-3 text-sm"><button type="button" onClick={() => jumpToLine(comment.start)} className="text-xs text-text-muted">L{comment.start}-L{comment.end}</button><p className="mt-1 text-text-secondary">{comment.body}</p></div>))}
-              </div>
-            )}
-          </div>
-          <div className="flex h-14 items-center justify-center gap-3 border-t border-white/[0.06]">
-            <button type="button" onClick={() => void compileNow()} className="rounded-full bg-charcoal-850 p-2 text-text-secondary hover:text-white"><RefreshCw size={18} /></button>
-            <button type="button" onClick={() => setRightTab('assistant')} className="rounded-full bg-charcoal-850 p-2 text-text-secondary hover:text-white"><ChevronLeft size={18} /></button>
-            <button type="button" onClick={() => setRightTab('logs')} className="rounded-full bg-charcoal-850 p-2 text-text-secondary hover:text-white"><ChevronRight size={18} /></button>
-            <button type="button" onClick={() => setRightTab('comments')} className="rounded-full bg-charcoal-850 p-2 text-text-secondary hover:text-white"><MessageSquare size={16} /></button>
-            <button type="button" onClick={() => setRightTab('logs')} className="rounded-full bg-charcoal-850 p-2 text-text-secondary hover:text-white"><FileWarning size={16} /></button>
-          </div>
-        </aside>
-      </div>
-      <button type="button" onClick={() => navigate(`/app/${workspaceId}/projects`)} className="sr-only">Back to projects {activeWorkspace ? `· ${activeWorkspace.name}` : ''}</button>
-    </div>
+    <EditorShell
+      leftRail={{
+        projectName,
+        documentTitle,
+        sections,
+        saveNotice,
+        onBackToProjects: () => navigate(`/app/${workspaceId}/projects`),
+        onJumpToLine: jumpToLine,
+      }}
+      runStatusBar={{
+        compileState,
+        compileMeta,
+        layoutMode,
+        primaryPane,
+        drawerOpen,
+        onCompileNow: queueCompile,
+        onPrimaryPaneChange: setPrimaryPane,
+        onLayoutModeChange: setLayoutMode,
+        onToggleDrawer: () => setDrawerOpen((open) => !open),
+      }}
+      composerPane={{
+        prompt,
+        selection,
+        actions,
+        deferredImageToLatex: true,
+        deferredVoiceMode: true,
+        onPromptChange: setPrompt,
+        onPromptSubmit: submitPrompt,
+        onApplyAction: applyAction,
+        onRejectAction: rejectAction,
+        onViewAction: (actionId) => {
+          const target = actions.find((item) => item.id === actionId);
+          if (target) jumpToLine(target.startLine);
+        },
+      }}
+      artifactPane={{
+        primaryPane,
+        content,
+        onContentChange: setContent,
+        documentTitle,
+        diagnostics,
+        revealLine,
+        onSelectionChange: (startLine, endLine) => setSelection({ startLine, endLine }),
+        pdfBlob,
+        onCompileNow: () => queueCompile('manual'),
+        inlineHunks,
+        onResolveInlineHunk: (hunkId, action) => {
+          if (action === 'accept') {
+            applyAction(hunkId);
+          } else {
+            rejectAction(hunkId);
+          }
+        },
+      }}
+      rightDrawer={{
+        isOpen: drawerOpen,
+        mode: drawerMode,
+        onClose: () => setDrawerOpen(false),
+        onModeChange: setDrawerMode,
+        projectInfo,
+        comments,
+        commentDraft,
+        activityEvents,
+        compileLog,
+        diagnostics,
+        onCommentDraftChange: setCommentDraft,
+        onAddComment: addComment,
+        onJumpToLine: jumpToLine,
+      }}
+    />
   );
 };
 

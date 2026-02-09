@@ -23,7 +23,7 @@ const AuthProviderButton: React.FC<AuthProviderButtonProps> = ({
   disabled,
   onClick
 }) => {
-  const className = variant === 'primary' ? 'btn-pill-primary w-full' : 'btn-pill-secondary w-full';
+  const className = variant === 'primary' ? 'btn-primary w-full' : 'btn-secondary w-full';
   return (
     <button
       type="button"

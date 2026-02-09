@@ -1,8 +1,6 @@
 import { PdfTeXEngine } from './PdfTeXEngine';
-
-// @ts-ignore
-import { CompilationResult } from './tex-compiler'; // Self-reference or ensure implementation matches
-
+import { CompileService } from './compile/CompileService';
+import { CompileEngineAdapter } from './compile/types';
 
 export interface CompilationResult {
   success: boolean;
@@ -10,71 +8,65 @@ export interface CompilationResult {
   log: string;
 }
 
-export class TeXCompiler {
-  private engine: PdfTeXEngine;
-  private initializing: boolean = false;
+const loadFormatFile = async (): Promise<Uint8Array | null> => {
+  try {
+    const formatResponse = await fetch('/swiftlatexpdftex.fmt');
+    if (!formatResponse.ok) return null;
+    const formatBlob = await formatResponse.blob();
+    return new Uint8Array(await formatBlob.arrayBuffer());
+  } catch {
+    return null;
+  }
+};
 
-  constructor() {
-    this.engine = new PdfTeXEngine();
+class PdfTeXEngineAdapter implements CompileEngineAdapter {
+  constructor(private readonly engine: PdfTeXEngine = new PdfTeXEngine()) {}
+
+  isReady(): boolean {
+    return this.engine.isReady();
   }
 
-  async compile(texContent: string): Promise<CompilationResult> {
-    try {
-      if (!this.engine.isReady()) {
-        if (!this.initializing) {
-          this.initializing = true;
-          await this.engine.loadEngine();
+  loadEngine(): Promise<void> {
+    return this.engine.loadEngine();
+  }
 
-          // Preload format file
-          try {
-            const fmtRes = await fetch('/swiftlatexpdftex.fmt');
-            if (fmtRes.ok) {
-              const fmtBlob = await fmtRes.blob();
-              const fmtArray = new Uint8Array(await fmtBlob.arrayBuffer());
-              this.engine.writeMemFSFile('swiftlatexpdftex.fmt', fmtArray);
-              console.log('Format file preloaded');
-            } else {
-              console.error('Failed to fetch format file');
-            }
-          } catch (e) {
-            console.error('Error preloading format file:', e);
-          }
+  writeMemFSFile(path: string, content: string | Uint8Array): void {
+    this.engine.writeMemFSFile(path, content);
+  }
 
-          this.initializing = false;
-        } else {
-          // Wait until ready if already initializing?
-          // Simple approach: re-await loadEngine or just wait loop
-          while (this.initializing) {
-            await new Promise(r => setTimeout(r, 100));
-          }
-          if (!this.engine.isReady()) await this.engine.loadEngine();
-        }
-      }
+  setEngineMainFile(filename: string): void {
+    this.engine.setEngineMainFile(filename);
+  }
 
-      this.engine.writeMemFSFile('main.tex', texContent);
-      this.engine.setEngineMainFile('main.tex');
-
-      const result = await this.engine.compileLaTeX();
-
-      if (result.status === 0 && result.pdf) {
-        const blob = new Blob([result.pdf], { type: 'application/pdf' });
-        return {
-          success: true,
-          pdf: blob,
-          log: result.log
-        };
-      } else {
-        return {
-          success: false,
-          log: result.log || 'Compilation failed with unknown error'
-        };
-      }
-    } catch (e: any) {
-      console.error("Compilation error:", e);
-      return {
-        success: false,
-        log: e.message || String(e)
-      };
-    }
+  async compileLaTeX() {
+    const result = await this.engine.compileLaTeX();
+    return {
+      status: result.status,
+      pdf: result.pdf,
+      log: result.log,
+    };
   }
 }
+
+export class TeXCompiler {
+  private readonly compileService = new CompileService(new PdfTeXEngineAdapter(), {
+    preloadFormat: loadFormatFile,
+  });
+
+  async compile(texContent: string): Promise<CompilationResult> {
+    const result = await this.compileService.compile(texContent);
+    if (result.success && result.pdfBytes) {
+      return {
+        success: true,
+        pdf: new Blob([result.pdfBytes], { type: 'application/pdf' }),
+        log: result.log,
+      };
+    }
+
+    return {
+      success: false,
+      log: result.log || 'Compilation failed with unknown error',
+    };
+  }
+}
+

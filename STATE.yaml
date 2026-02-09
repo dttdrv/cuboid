@@ -1,19 +1,25 @@
-status: phase_2_ui_refinement
+status: overhaul_phase_execution_in_review
 goals:
-  - current: Stabilize Prism-style editor UX and interaction wiring
-  - pending: Deep polish pass for responsive/mobile and animation nuance
+  - current: Complete hard-square UI overhaul and core/backend security refactor
+  - pending: Close gates A-F with evidence-backed sign-off after active user testing
 constraints:
   - local-first
-  - no-backend
-  - aesthetic: Charcoal (#0d0e0d), minimal chrome
-  - avoid regressions in auth/workspace routing
+  - no-cloud-runtime-in-this-phase
+  - aesthetic: Hard-square industrial minimal with IBM Plex Sans + JetBrains Mono
+  - preserve auth/workspace/project routing semantics
 decisions:
-  - editor_shell: Three-pane workspace with tabbed right rail (Preview/Assistant/Activity/Comments)
-  - interactions: Removed dead controls by wiring all visible editor/dashboard buttons
-  - showcase: Playwright visual artifacts stored under showcase/after
+  - ui_system: Global square-edge system with tokenized buttons/inputs/surfaces
+  - backend_boundaries: Introduced DataStore/AuthService/CryptoVault/CompileService adapter seams
+  - security_mode: Hardened local mode with encrypted AI key vault and token-validated magic links
+  - parity_mode: Prism core parity implemented; near-term items represented as local stubs/contracts
+  - agent_direction: User-controlled assistant/agent boundary with scoped autonomy only
 risks:
-  - precision_gap: Visual fidelity still not 1:1 vs Prism screenshots
-  - ai_depth: Assistant/logs behaviors are currently local stubs, not backend-driven
+  - preview_port_collision: Port 4173 can be occupied by stale processes, causing startup confusion
+  - lock_flow_ux: unlock screen introduced and still needs broader user testing in browser
+  - production_auth: local auth/session implementation remains demo-grade for non-local deployments
+  - benchmark_url_stability: Prism parity references vary across openai.com paths; parity source must be re-validated periodically
 next_steps:
-  - Iterate typography density and spacing from screenshot diffs
-  - Add richer actionable logs/comments data flows from real compile/AI layers
+  - Keep resolving sign-in/session edge cases found during active manual testing
+  - Run and document gated evidence updates (A-F) in scorecard and critique logs
+  - Capture new showcase artifacts for Gate B/C visual sign-off
+  - Iterate remaining token cleanup and flatten residual legacy utility aliases

@@ -7,12 +7,11 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Blueprint Palette
                 charcoal: {
-                    950: '#0d0e0d', // Root background
-                    900: '#1a1a1a', // Panel background
+                    950: '#0d0e0d',
+                    900: '#1a1a1a',
                     850: '#202020',
-                    800: '#2a2a2a', // Selection / Divider
+                    800: '#2a2a2a',
                     700: '#333333',
                 },
                 text: {
@@ -21,6 +20,7 @@ export default {
                     muted: '#8a8a8a',
                 },
                 accent: '#0097d5',
+                'accent-strong': '#006487',
                 danger: '#d64c4c',
                 success: '#3fbf7f',
                 warning: '#e1b84a',
@@ -34,8 +34,14 @@ export default {
                 mono: ['JetBrains Mono', 'Menlo', 'monospace'],
             },
             borderRadius: {
-                'xl': '12px',
-                '2xl': '16px',
+                none: '0px',
+                sm: '0px',
+                DEFAULT: '0px',
+                md: '0px',
+                lg: '0px',
+                xl: '0px',
+                '2xl': '0px',
+                full: '0px',
             }
         },
     },

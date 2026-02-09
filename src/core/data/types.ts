@@ -129,6 +129,54 @@ export interface RuntimeCapabilities {
   mediaRecorderSupported: boolean;
 }
 
+export interface UiSessionState {
+  projectId: string;
+  workspaceId?: string;
+  primaryPane: 'composer' | 'editor' | 'preview';
+  layoutMode: 'split' | 'focus_composer' | 'focus_editor' | 'focus_preview';
+  rightDrawerMode: 'project_info' | 'comments' | 'logs' | 'activity';
+  rightDrawerOpen: boolean;
+  updatedAt: string;
+}
+
+export type GateStatus = 'pass' | 'warn' | 'fail' | 'skipped';
+
+export interface GateResult {
+  gateId: string;
+  title: string;
+  status: GateStatus;
+  detail?: string;
+  owner?: string;
+  checkedAt: string;
+}
+
+export interface ParityDiffItem {
+  id: string;
+  domain: 'ui' | 'api' | 'compile' | 'auth' | 'security' | 'data';
+  expected: string;
+  actual: string;
+  impact: 'low' | 'medium' | 'high';
+}
+
+export interface GateParitySummary {
+  passed: number;
+  warned: number;
+  failed: number;
+  skipped: number;
+  parityDriftCount: number;
+}
+
+export interface GateParityReport {
+  id: string;
+  projectId: string;
+  workspaceId?: string;
+  generatedAt: string;
+  generatedBy?: string;
+  gates: GateResult[];
+  parityDiffs: ParityDiffItem[];
+  summary: GateParitySummary;
+}
+
 export interface User {
   id: string;
   email?: string;
@@ -168,4 +216,5 @@ export interface Document {
   iv: string; // Base64 blob
   salt: string; // Base64 blob
   created_at: string;
+  updated_at?: string;
 }

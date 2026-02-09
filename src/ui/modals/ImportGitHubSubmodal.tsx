@@ -20,18 +20,18 @@ const ImportGitHubSubmodal: React.FC<ImportGitHubSubmodalProps> = ({ onAppendLog
   return (
     <div className="space-y-3">
       <input
-        className="input-pill"
+        className="input-field"
         placeholder="https://github.com/org/repo"
         value={url}
         onChange={(event) => setUrl(event.target.value)}
       />
       <input
-        className="input-pill"
+        className="input-field"
         placeholder="Branch"
         value={branch}
         onChange={(event) => setBranch(event.target.value)}
       />
-      <button type="button" className="btn-pill-secondary" onClick={handleImport}>
+      <button type="button" className="btn-secondary" onClick={handleImport}>
         Import from GitHub
       </button>
     </div>

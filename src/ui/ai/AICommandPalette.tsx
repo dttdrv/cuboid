@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getAIService } from '../../core/ai/AIService';
+import { AIProviderId } from '../../core/ai/providerIds';
 
 const aiService = getAIService();
 
@@ -12,7 +13,7 @@ interface AICommandPaletteProps {
 export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onClose }) => {
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
   const [apiKey, setApiKey] = useState<string>('');
-  const [provider, setProvider] = useState<string>('Mistral');
+  const [provider, setProvider] = useState<AIProviderId>('mistral');
   const [prompt, setPrompt] = useState<string>('');
   const [output, setOutput] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -50,9 +51,12 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
       return;
     }
     try {
-      await aiService.persistKey(provider, apiKey);
-      setIsConfigured(true);
+      const configured = await aiService.persistKey(provider, apiKey);
+      setIsConfigured(configured);
       setApiKey(''); // Clear memory of key
+      if (!configured) {
+        setError('Provider key saved, but provider runtime is not available yet.');
+      }
     } catch (e) {
       setError('Failed to save API Key');
     }
@@ -92,17 +96,17 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-charcoal-900 shadow-2xl shadow-black/40"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden border border-white/[0.08] bg-charcoal-900 shadow-2xl shadow-black/40"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.06] bg-charcoal-850 p-4">
+        <div className="flex items-center justify-between border-b border-white/[0.08] bg-charcoal-850 p-4">
           <h2 className="flex items-center gap-2 text-xl font-semibold text-text-primary">
             <span className="text-accent">+</span> AI Assistant
           </h2>
           <button
             onClick={onClose}
-            className="text-text-secondary transition-colors hover:text-text-primary"
+            className="btn-icon h-8 w-8"
           >
             ✕
           </button>
@@ -111,7 +115,7 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
         {/* Content Area */}
         <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
           {error && (
-            <div className="mb-4 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+            <div className="mb-4 border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
               {error}
             </div>
           )}
@@ -124,12 +128,12 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                 <label className="block text-sm font-medium text-text-secondary">Provider</label>
                 <select
                   value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-white/[0.06] bg-charcoal-850 px-3 text-text-primary outline-none focus:border-accent"
+                  onChange={(e) => setProvider(e.target.value as AIProviderId)}
+                  className="select-field px-3"
                 >
-                  <option value="Mistral">Mistral</option>
-                  <option value="OpenAI">OpenAI</option>
-                  <option value="Anthropic">Anthropic</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
                 </select>
               </div>
 
@@ -140,13 +144,13 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="h-11 w-full rounded-xl border border-white/[0.06] bg-charcoal-850 px-3 text-text-primary outline-none focus:border-accent"
+                  className="input-field px-3"
                 />
               </div>
 
               <button
                 onClick={handleSaveConfig}
-                className="btn-pill-primary w-full"
+                className="btn-primary w-full"
               >
                 Save Configuration
               </button>
@@ -155,7 +159,7 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
             <div className="space-y-6">
               {/* Output Display */}
               {output && (
-                <div className="min-h-[100px] rounded-lg border border-white/[0.06] bg-charcoal-850 p-4">
+                <div className="min-h-[100px] border border-white/[0.08] bg-charcoal-850 p-4">
                   <div className="prose prose-sm max-w-none text-text-secondary">
                     <ReactMarkdown>{output}</ReactMarkdown>
                   </div>
@@ -181,15 +185,15 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                     }
                   }}
                   placeholder="Ask something... (Shift+Enter for new line)"
-                  className="custom-scrollbar h-32 w-full resize-none rounded-lg border border-white/[0.06] bg-charcoal-850 p-3 text-text-primary outline-none focus:border-accent"
+                  className="custom-scrollbar textarea-field h-32"
                   disabled={isGenerating}
                 />
 
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <button
                     onClick={handleReset}
                     disabled={isGenerating || (!output && !prompt)}
-                    className="rounded px-3 py-1 text-sm text-text-secondary transition-colors hover:bg-charcoal-850 hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="btn-ghost h-9 px-3 text-sm disabled:cursor-not-allowed"
                   >
                     Reset / Clear
                   </button>
@@ -197,10 +201,10 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating || !prompt.trim()}
-                    className={`flex items-center gap-2 rounded-lg px-6 py-2 font-medium transition-all
+                    className={`inline-flex h-10 items-center gap-2 border px-6 font-medium transition-colors
                       ${isGenerating || !prompt.trim()
-                        ? 'cursor-not-allowed bg-charcoal-700 text-text-muted'
-                        : 'bg-accent text-white active:scale-95'
+                        ? 'cursor-not-allowed border-charcoal-700 bg-charcoal-700 text-text-muted'
+                        : 'border-accent bg-accent text-white hover:bg-accent-strong'
                       }`}
                   >
                     {isGenerating ? 'Sending...' : 'Send'}

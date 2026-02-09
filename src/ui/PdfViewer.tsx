@@ -18,34 +18,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ pdf, onCompileNow }) => {
     }
   }, [pdf]);
 
-  const containerStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
-  };
-
-  const placeholderStyle: React.CSSProperties = {
-    ...containerStyle,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
-    color: '#b6b6b6',
-    fontSize: '1rem',
-  };
-
-  const iframeStyle: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    border: 'none',
-  };
-
   if (!pdfUrl) {
     return (
-      <div className="pdf-viewer-placeholder flex-col gap-3" style={placeholderStyle}>
+      <div className="pdf-viewer-placeholder flex h-full w-full flex-col items-center justify-center gap-3 border-t border-white/[0.08] bg-charcoal-900 text-text-secondary">
         <p>Compile your document to see the PDF preview</p>
         {onCompileNow && (
-          <button type="button" onClick={onCompileNow} className="btn-pill-secondary h-9 px-4">
+          <button type="button" onClick={onCompileNow} className="btn-secondary h-9 px-4">
             Compile now
           </button>
         )}
@@ -54,12 +32,11 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ pdf, onCompileNow }) => {
   }
 
   return (
-    <div className="pdf-viewer" style={containerStyle}>
+    <div className="pdf-viewer h-full w-full overflow-hidden">
       <iframe
         src={pdfUrl}
         title="PDF Preview"
-        className="pdf-iframe"
-        style={iframeStyle}
+        className="pdf-iframe h-full w-full border-0"
       />
     </div>
   );

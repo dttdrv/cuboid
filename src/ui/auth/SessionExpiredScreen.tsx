@@ -10,10 +10,10 @@ const SessionExpiredScreen: React.FC = () => {
         <h1 className="text-2xl font-semibold text-text-primary">Session expired</h1>
         <p className="mt-1 text-sm text-text-secondary">Please sign in again.</p>
         <div className="mt-6 flex items-center gap-3">
-          <button type="button" className="btn-pill-primary flex-1" onClick={() => navigate('/auth/login')}>
+          <button type="button" className="btn-primary flex-1" onClick={() => navigate('/auth/login')}>
             Sign in
           </button>
-          <button type="button" className="btn-pill-tertiary" onClick={() => navigate('/')}>
+          <button type="button" className="btn-ghost" onClick={() => navigate('/')}>
             Back to home
           </button>
         </div>

@@ -48,10 +48,10 @@ const EmailSignInScreen: React.FC = () => {
         </div>
 
         <div className="mt-2 flex items-center gap-3">
-          <button type="button" className="btn-pill-primary flex-1" disabled={loading} onClick={handleSend}>
+          <button type="button" className="btn-primary flex-1" disabled={loading} onClick={handleSend}>
             {loading ? 'Sending...' : 'Send magic link'}
           </button>
-          <button type="button" className="btn-pill-tertiary" onClick={() => navigate('/auth/login')}>
+          <button type="button" className="btn-ghost" onClick={() => navigate('/auth/login')}>
             Back
           </button>
         </div>

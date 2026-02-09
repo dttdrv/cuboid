@@ -1,6 +1,8 @@
 /* eslint-disable no-restricted-globals */
 
-// Message Types
+import { CompileService } from '../core/compile/CompileService';
+import { CompileEngineAdapter } from '../core/compile/types';
+
 export interface CompileRequest {
   type: 'compile';
   id: string;
@@ -16,102 +18,111 @@ export interface CompileResponse {
   errors: Array<{ line: number; message: string }>;
 }
 
-// Interface for SwiftLaTeX Engine (loaded dynamically via importScripts)
-interface PdfTeXEngine {
+interface WorkerPdfTeXEngine {
+  isReady?: () => boolean;
   loadEngine(): Promise<void>;
-  writeMemFSFile(path: string, content: string): void;
+  writeMemFSFile(path: string, content: string | Uint8Array): void;
   setEngineMainFile(filename: string): void;
-  compileLaTeX(): Promise<{ pdf: Uint8Array; log: string }>;
+  compileLaTeX(): Promise<{ status?: number; pdf?: Uint8Array; log: string }>;
 }
 
-// Extend the global scope to include the dynamically loaded engine constructor
 declare global {
   // eslint-disable-next-line no-var
-  var PdfTeXEngine: { new (): PdfTeXEngine } | undefined;
+  var PdfTeXEngine: { new (): WorkerPdfTeXEngine } | undefined;
 }
 
-let engine: PdfTeXEngine | null = null;
+let workerEngine: WorkerPdfTeXEngine | null = null;
 let engineLoaded = false;
-let engineLoading = false;
 
-async function loadEngine(): Promise<void> {
-  if (engineLoaded || engineLoading) return;
-  
-  engineLoading = true;
-  
+const ensureEngineScript = () => {
+  if (typeof PdfTeXEngine !== 'undefined') return;
+  importScripts('/swiftlatex/PdfTeXEngine.js');
+  if (typeof PdfTeXEngine === 'undefined') {
+    throw new Error('Local SwiftLaTeX engine script did not expose PdfTeXEngine.');
+  }
+};
+
+const loadFormatFile = async (): Promise<Uint8Array | null> => {
   try {
-    // Load SwiftLaTeX from CDN
-    importScripts('https://cdn.jsdelivr.net/npm/swiftlatex@0.0.2/PdfTeXEngine.js');
-    
-    if (typeof PdfTeXEngine === 'undefined') {
-      throw new Error('SwiftLaTeX engine script loaded but PdfTeXEngine is not defined.');
+    const formatResponse = await fetch('/swiftlatexpdftex.fmt');
+    if (!formatResponse.ok) return null;
+    const blob = await formatResponse.blob();
+    return new Uint8Array(await blob.arrayBuffer());
+  } catch {
+    return null;
+  }
+};
+
+class WorkerEngineAdapter implements CompileEngineAdapter {
+  isReady(): boolean {
+    if (!workerEngine) return false;
+    if (workerEngine.isReady) return workerEngine.isReady();
+    return engineLoaded;
+  }
+
+  async loadEngine(): Promise<void> {
+    if (workerEngine && this.isReady()) return;
+    ensureEngineScript();
+    if (!workerEngine) {
+      workerEngine = new PdfTeXEngine!();
     }
-
-    engine = new PdfTeXEngine();
-    await engine.loadEngine();
-    
+    await workerEngine.loadEngine();
     engineLoaded = true;
-  } catch (error) {
-    engineLoading = false;
-    throw error;
+  }
+
+  writeMemFSFile(path: string, content: string | Uint8Array): void {
+    if (!workerEngine) throw new Error('Engine not initialized.');
+    workerEngine.writeMemFSFile(path, content);
+  }
+
+  setEngineMainFile(filename: string): void {
+    if (!workerEngine) throw new Error('Engine not initialized.');
+    workerEngine.setEngineMainFile(filename);
+  }
+
+  compileLaTeX(): Promise<{ status?: number; pdf?: Uint8Array; log: string }> {
+    if (!workerEngine) throw new Error('Engine not initialized.');
+    return workerEngine.compileLaTeX();
   }
 }
 
-function parseTeXErrors(log: string): Array<{ line: number; message: string }> {
-  const errors: Array<{ line: number; message: string }> = [];
-  // Regex matches "! Error message" at start of line in TeX logs
-  const regex = /^! (.+)$/gm;
-  let match;
-  while ((match = regex.exec(log)) !== null) {
-    errors.push({ line: 0, message: match[1] });
-  }
-  return errors;
-}
+const compileService = new CompileService(new WorkerEngineAdapter(), {
+  preloadFormat: loadFormatFile,
+});
 
 self.onmessage = async (event: MessageEvent<CompileRequest>) => {
   const { type, id, texContent } = event.data;
+  if (type !== 'compile') return;
 
-  if (type === 'compile') {
-    try {
-      await loadEngine();
+  try {
+    const result = await compileService.compile(texContent);
+    const pdf = result.pdfBytes
+      ? result.pdfBytes.buffer.slice(
+          result.pdfBytes.byteOffset,
+          result.pdfBytes.byteOffset + result.pdfBytes.byteLength,
+        )
+      : undefined;
+    const response: CompileResponse = {
+      type: 'compile-result',
+      id,
+      success: result.success,
+      pdf,
+      log: result.log,
+      errors: result.errors,
+    };
 
-      if (!engine) {
-        throw new Error('Engine initialization failed.');
-      }
-
-      // Write main.tex
-      engine.writeMemFSFile('main.tex', texContent);
-      engine.setEngineMainFile('main.tex');
-
-      // Compile
-      const result = await engine.compileLaTeX();
-
-      // Parse errors from log
-      const errors = parseTeXErrors(result.log);
-
-      const response: CompileResponse = {
-        type: 'compile-result',
-        id,
-        success: !!(result.pdf && result.pdf.length > 0),
-        pdf: result.pdf ? result.pdf.buffer : undefined,
-        log: result.log,
-        errors
-      };
-
-      // Send response, transferring the ArrayBuffer if it exists to avoid copying
-      self.postMessage(response, response.pdf ? [response.pdf] : []);
-      
-    } catch (e) {
-      const errorResponse: CompileResponse = {
-        type: 'compile-result',
-        id,
-        success: false,
-        log: String(e),
-        errors: []
-      };
-      self.postMessage(errorResponse);
-    }
+    self.postMessage(response, response.pdf ? [response.pdf] : []);
+  } catch (error) {
+    const errorResponse: CompileResponse = {
+      type: 'compile-result',
+      id,
+      success: false,
+      log: error instanceof Error ? error.message : String(error),
+      errors: [],
+    };
+    self.postMessage(errorResponse);
   }
 };
 
 export {};
+

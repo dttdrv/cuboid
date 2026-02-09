@@ -28,7 +28,7 @@ const PillInput: React.FC<PillInputProps> = ({
         placeholder={placeholder}
         autoFocus={autoFocus}
         onChange={(event) => onChange(event.target.value)}
-        className="input-pill"
+        className="input-field"
       />
       <span className="input-error-slot">{errorText || ' '}</span>
     </div>

@@ -6,7 +6,7 @@ interface CenterCardProps {
 }
 
 const CenterCard: React.FC<CenterCardProps> = ({ children, className = '' }) => {
-  return <div className={`center-card ${className}`.trim()}>{children}</div>;
+  return <div className={`surface-card ${className}`.trim()}>{children}</div>;
 };
 
 export default CenterCard;

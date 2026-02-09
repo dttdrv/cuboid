@@ -51,13 +51,13 @@ const CheckInboxScreen: React.FC = () => {
         <div className="mt-6 space-y-2">
           <InlineNotice type="success" message={status} />
           <InlineNotice type="error" message={sessionError} />
-          <button type="button" className="btn-pill-secondary w-full" onClick={handleResend} disabled={cooldown > 0 || loading}>
+          <button type="button" className="btn-secondary w-full" onClick={handleResend} disabled={cooldown > 0 || loading}>
             {cooldown > 0 ? `Resend link (${cooldown}s)` : 'Resend link'}
           </button>
-          <button type="button" className="btn-pill-primary w-full" onClick={handleComplete} disabled={loading}>
+          <button type="button" className="btn-primary w-full" onClick={handleComplete} disabled={loading}>
             Complete sign-in
           </button>
-          <button type="button" className="btn-pill-tertiary w-full" onClick={() => navigate('/auth/login/email')}>
+          <button type="button" className="btn-ghost w-full" onClick={() => navigate('/auth/login/email')}>
             Use a different email
           </button>
         </div>

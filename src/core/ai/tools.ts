@@ -1,3 +1,5 @@
+import { AIRequestContext } from './types';
+
 export interface WebSearchResult {
   title: string;
   url: string;
@@ -13,6 +15,23 @@ export interface LiteratureToolOutput {
   results: WebSearchResult[];
   bibtex: string[];
 }
+
+const assertEgressAllowed = (targetUrl: string, context?: AIRequestContext) => {
+  const policy = context?.egress;
+  if (!policy) return;
+
+  const url = new URL(targetUrl);
+  const protocol = url.protocol.toLowerCase();
+  if (protocol === 'http:' && !policy.allowInsecureHttp) {
+    throw new Error(`Egress policy blocks insecure endpoint: ${targetUrl}`);
+  }
+
+  const host = url.hostname.toLowerCase();
+  const allowed = policy.allowedHosts.map((entry) => entry.toLowerCase());
+  if (!allowed.includes(host)) {
+    throw new Error(`Egress policy blocks host: ${host}`);
+  }
+};
 
 const normalizeWhitespace = (value: string) => value.replace(/\s+/g, ' ').trim();
 
@@ -64,13 +83,18 @@ const parseArxivXml = (xml: string): WebSearchResult[] => {
     .filter((entry): entry is WebSearchResult => Boolean(entry));
 };
 
-export const webSearch = async (query: string): Promise<WebSearchResult[]> => {
+export const webSearch = async (query: string, context?: AIRequestContext): Promise<WebSearchResult[]> => {
   const cleaned = query.trim();
   if (!cleaned) return [];
 
+  const crossrefUrl = `https://api.crossref.org/works?query=${encodeURIComponent(cleaned)}&rows=5`;
+  const arxivUrl = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(cleaned)}&start=0&max_results=5`;
+  assertEgressAllowed(crossrefUrl, context);
+  assertEgressAllowed(arxivUrl, context);
+
   const [crossrefRes, arxivRes] = await Promise.allSettled([
-    fetch(`https://api.crossref.org/works?query=${encodeURIComponent(cleaned)}&rows=5`),
-    fetch(`https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(cleaned)}&start=0&max_results=5`),
+    fetch(crossrefUrl),
+    fetch(arxivUrl),
   ]);
 
   const results: WebSearchResult[] = [];
@@ -106,12 +130,14 @@ export const webSearch = async (query: string): Promise<WebSearchResult[]> => {
   return results.slice(0, 8);
 };
 
-export const literatureSearch = async (query: string): Promise<LiteratureToolOutput> => {
-  const results = await webSearch(query);
+export const literatureSearch = async (
+  query: string,
+  context?: AIRequestContext,
+): Promise<LiteratureToolOutput> => {
+  const results = await webSearch(query, context);
   return {
     query,
     results,
     bibtex: results.slice(0, 5).map((entry) => buildArticleBibTex(entry)),
   };
 };
-

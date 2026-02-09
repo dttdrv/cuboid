@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
-import { LocalData } from '../storage/local';
+import { getDataStore } from '../storage/LocalDataStore';
 import { useAuth } from '../auth/AuthProvider';
 import * as Crypto from '../crypto';
 import { Project, Document } from '../data/types';
 
 export const useDataLayer = () => {
   const { user, masterKey, selectedWorkspaceId } = useAuth();
+  const dataStore = getDataStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,15 +17,15 @@ export const useDataLayer = () => {
 
     const effectiveWorkspaceId = workspaceId || selectedWorkspaceId || undefined;
     const data = effectiveWorkspaceId
-      ? await LocalData.listProjectsByWorkspace(user.id, effectiveWorkspaceId)
-      : await LocalData.listProjects(user.id);
+      ? await dataStore.listProjectsByWorkspace(user.id, effectiveWorkspaceId)
+      : await dataStore.listProjects(user.id);
     const filtered = effectiveWorkspaceId
       ? data.filter((project) => !project.workspace_id || project.workspace_id === effectiveWorkspaceId)
       : data;
 
     setLoading(false);
     return filtered;
-  }, [user, selectedWorkspaceId]);
+  }, [user, selectedWorkspaceId, dataStore]);
 
   const createProject = useCallback(async (name: string): Promise<Project | null> => {
     if (!user || !masterKey) {
@@ -36,7 +37,7 @@ export const useDataLayer = () => {
 
     try {
       // 1. Create Project
-      const project = await LocalData.createProject(user.id, name, selectedWorkspaceId || undefined);
+      const project = await dataStore.createProject(user.id, name, selectedWorkspaceId || undefined);
 
       // 2. Create Default Document
       const docSalt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -58,7 +59,7 @@ export const useDataLayer = () => {
         updated_at: new Date().toISOString()
       };
 
-      await LocalData.createDocument(doc);
+      await dataStore.createDocument(doc);
 
       setLoading(false);
       return project;
@@ -67,7 +68,7 @@ export const useDataLayer = () => {
       setLoading(false);
       return null;
     }
-  }, [user, masterKey, selectedWorkspaceId]);
+  }, [user, masterKey, selectedWorkspaceId, dataStore]);
 
   const getDocument = useCallback(async (projectId: string): Promise<{ content: string; title: string } | null> => {
     if (!masterKey) {
@@ -78,7 +79,7 @@ export const useDataLayer = () => {
     setError(null);
 
     try {
-      const doc = await LocalData.getDocumentByProject(projectId);
+      const doc = await dataStore.getDocumentByProject(projectId);
       if (!doc) return null;
 
       // Decrypt
@@ -99,7 +100,7 @@ export const useDataLayer = () => {
       setLoading(false);
       return null;
     }
-  }, [masterKey]);
+  }, [masterKey, dataStore]);
 
   const saveDocument = useCallback(async (projectId: string, content: string): Promise<boolean> => {
     if (!masterKey) {
@@ -111,7 +112,7 @@ export const useDataLayer = () => {
 
     try {
       // 1. Fetch current doc to get salt
-      const docData = await LocalData.getDocumentByProject(projectId);
+      const docData = await dataStore.getDocumentByProject(projectId);
       if (!docData) throw new Error('Document not found');
 
       const salt = Crypto.fromBase64(docData.salt);
@@ -127,7 +128,7 @@ export const useDataLayer = () => {
         iv: Crypto.toBase64(iv),
       }
 
-      await LocalData.saveDocument(updates);
+      await dataStore.saveDocument(updates);
 
       setLoading(false);
       return true;
@@ -136,7 +137,7 @@ export const useDataLayer = () => {
       setLoading(false);
       return false;
     }
-  }, [masterKey]);
+  }, [masterKey, dataStore]);
 
   return {
     loading,

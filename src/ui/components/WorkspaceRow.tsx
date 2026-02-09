@@ -12,13 +12,13 @@ const WorkspaceRow: React.FC<WorkspaceRowProps> = ({ workspace, active = false, 
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-xl px-4 py-3 text-left transition-colors hover:bg-charcoal-850 ${
-        active ? 'selection-pill' : 'bg-charcoal-900'
+      className={`w-full border border-white/[0.08] px-4 py-3 text-left transition-colors hover:bg-charcoal-850 ${
+        active ? 'selection-row' : 'bg-charcoal-900'
       }`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-charcoal-800 text-sm font-semibold">
+          <span className="inline-flex h-8 w-8 items-center justify-center border border-white/[0.08] bg-charcoal-800 text-sm font-semibold">
             {workspace.avatar}
           </span>
           <span className="text-sm font-medium text-text-primary">{workspace.name}</span>

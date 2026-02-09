@@ -1,0 +1,2 @@
+const subtle=crypto.subtle;
+(async(

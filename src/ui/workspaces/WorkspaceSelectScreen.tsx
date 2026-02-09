@@ -37,10 +37,10 @@ const WorkspaceSelectScreen: React.FC = () => {
           <p className="mt-5 text-sm text-text-secondary">No workspace found yet.</p>
         )}
         <div className="mt-6 flex items-center gap-3">
-          <button type="button" className="btn-pill-secondary flex-1" onClick={() => navigate('/workspaces/new')}>
+          <button type="button" className="btn-secondary flex-1" onClick={() => navigate('/workspaces/new')}>
             Create new workspace
           </button>
-          <button type="button" className="btn-pill-tertiary" onClick={handleSignOut}>
+          <button type="button" className="btn-ghost" onClick={handleSignOut}>
             Sign out
           </button>
         </div>

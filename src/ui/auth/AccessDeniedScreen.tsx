@@ -20,10 +20,10 @@ const AccessDeniedScreen: React.FC = () => {
           Request access from a workspace admin, or switch workspace.
         </p>
         <div className="mt-6 flex items-center gap-3">
-          <button type="button" className="btn-pill-secondary flex-1" onClick={() => navigate('/workspaces/select')}>
+          <button type="button" className="btn-secondary flex-1" onClick={() => navigate('/workspaces/select')}>
             Switch workspace
           </button>
-          <button type="button" className="btn-pill-tertiary" onClick={handleSignOut}>
+          <button type="button" className="btn-ghost" onClick={handleSignOut}>
             Sign out
           </button>
         </div>

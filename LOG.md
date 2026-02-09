@@ -21,3 +21,35 @@
   - **Action**: Refined `src/ui/Dashboard.tsx` hierarchy (denser header controls, search affordance, visual consistency with editor shell).
   - **Verification**: `npm run build` and `npm test -- --run` both pass.
   - **Showcase**: Captured updated screens in `showcase/after/` (dashboard + editor tab states).
+- [2026-02-09] **Total Overhaul Program Implementation (Phased Gates A-F in-review)**
+  - **Phase 0 Artifacts**: Added `Plan/acceptance_thresholds.md`, `Plan/gate_scorecard.md`, `Plan/prism_parity_matrix.md`, `Plan/prism_parity_checklist.md`, `Plan/gate_self_critique.md`, `Plan/security_headers_and_csp.md`, and `Plan/baseline_behavior_map.md`.
+  - **UI Overhaul (Phases 1-3)**: Applied hard-square tokenized design system across dashboard/editor/auth/workspace/modals/shared components. Updated `src/index.css` and `tailwind.config.js` for square-edge enforcement and unified primitives.
+  - **Core/Backend Refactor (Phase 4)**: Added `DataStore`, `AuthService`, `CryptoVault`, `CompileService`, provider-id normalization, parity data types, and de-duplicated compile path scaffolding.
+  - **Correctness Fixes**: Resolved magic-link token validation, removed `tex-compiler` self-import smell, and introduced session/master-key lifecycle handling including unlock route support.
+  - **Security Hardening (Phase 5)**: Encrypted AI key persistence via vault, introduced AI egress policy checks, removed remote worker CDN import path, and added CSP baseline to `index.html`.
+  - **Parity Stubs (Phase 6)**: Added near-term local stub contracts in `src/core/parity/featureStubs.ts`.
+  - **Verification Constraint**: Runtime verification commands were not executable in this shell due missing `node`/`npm`.
+- [2026-02-10] **Validation + Hotfix Session**
+  - **Validation**: `npm run build` passes, `npm test -- --run` passes (4 files, 10 tests) after PATH-resolved Node execution.
+  - **Incident**: Sign-in failures reproduced during manual testing.
+  - **Root Cause**: HKDF extractability assumptions conflicted with WebCrypto behavior, causing auth key lifecycle breakage.
+  - **Fixes**:
+    - Restored non-extractable HKDF in `src/core/crypto.ts`.
+    - Made wrapped master-key persistence best-effort/non-fatal in `src/core/auth/masterKeySession.ts` and `src/core/auth/AuthProvider.tsx`.
+    - Added admin test-entry mode in `src/ui/auth/LoginScreen.tsx` and role handling in `src/core/storage/local.ts`.
+  - **Documentation Update**: Meticulously refreshed `Plan/PLAN.md` and `Plan/ROADMAP_CHANGELOG.md` to reflect current program state, gate posture, and next sprint priorities.
+- [2026-02-10] **Roadmap/Plan Meticulous Sync While Active Testing**
+  - **Verification Refresh**:
+    - Re-ran build with explicit Node path: `set PATH=C:\Progra~1\nodejs;%PATH% && C:\Progra~1\nodejs\npm.cmd run build` -> pass.
+    - Re-ran tests with explicit Node path: `set PATH=C:\Progra~1\nodejs;%PATH% && C:\Progra~1\nodejs\npm.cmd test -- --run` -> pass (4 files, 10 tests).
+    - Verified preview endpoint: `http://127.0.0.1:4173` responds `HTTP 200`.
+  - **Operational Finding**:
+    - Port `4173` listener confirmed (`node.exe`), so user-facing startup issues are likely collision/state related rather than missing build output.
+  - **Benchmark Validation**:
+    - Confirmed `https://openai.com/prism` reachable.
+    - Confirmed legacy `https://openai.com/index/prism` is unstable (`404`) and documented as source-risk in parity planning.
+  - **Governance/File Sync**:
+    - Updated `Plan/PLAN.md` with current evidence, risk posture, and active testing direction.
+    - Updated `Plan/ROADMAP_CHANGELOG.md` with incident handling and serving diagnostics.
+    - Updated `STATE.yaml` to remove stale toolchain-gap risk and add active preview/parity-link risks.
+    - Updated gate/parity threshold artifacts to remove stale validation assumptions and align with current session truth.

@@ -74,7 +74,7 @@ const InviteAcceptanceScreen: React.FC = () => {
         <CenterCard>
           <h1 className="text-2xl font-semibold text-text-primary">You&apos;ve been invited</h1>
           <p className="mt-2 text-sm text-danger">{error}</p>
-          <button type="button" className="btn-pill-secondary mt-6 w-full" onClick={() => navigate('/auth/denied')}>
+          <button type="button" className="btn-secondary mt-6 w-full" onClick={() => navigate('/auth/denied')}>
             Continue
           </button>
         </CenterCard>
@@ -97,17 +97,17 @@ const InviteAcceptanceScreen: React.FC = () => {
         {!user ? (
           <button
             type="button"
-            className="btn-pill-primary mt-6 w-full"
+            className="btn-primary mt-6 w-full"
             onClick={() => navigate('/auth/login', { state: { next: `/auth/invites/${invite.token}` } })}
           >
             Sign in to accept
           </button>
         ) : (
           <div className="mt-6 flex items-center gap-3">
-            <button type="button" className="btn-pill-primary flex-1" onClick={handleAccept}>
+            <button type="button" className="btn-primary flex-1" onClick={handleAccept}>
               Accept invite
             </button>
-            <button type="button" className="btn-pill-tertiary" onClick={handleDecline}>
+            <button type="button" className="btn-ghost" onClick={handleDecline}>
               Decline
             </button>
           </div>

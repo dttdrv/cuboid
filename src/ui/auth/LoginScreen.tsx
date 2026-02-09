@@ -8,8 +8,9 @@ import InlineNotice from '../components/InlineNotice';
 const LoginScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithProvider, loading, sessionError, clearSessionError } = useAuth();
+  const { signInWithProvider, signInAsAdmin, loading, sessionError, clearSessionError } = useAuth();
   const [pendingProvider, setPendingProvider] = useState<'openai' | 'github' | 'google' | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const handleProvider = async (provider: 'openai' | 'github' | 'google') => {
     clearSessionError();
@@ -23,13 +24,25 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleAdminMode = async () => {
+    clearSessionError();
+    setAdminLoading(true);
+    try {
+      await signInAsAdmin();
+      const nextPath = (location.state as { next?: string } | undefined)?.next;
+      navigate(nextPath || '/workspaces/select');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-charcoal-950 px-4">
       <CenterCard>
         <div className="mb-7">
           <div className="mb-1 flex items-center gap-2">
             <h1 className="text-3xl font-semibold tracking-tight text-text-primary">Prism</h1>
-            <span className="rounded-full bg-charcoal-850 px-2 py-1 text-xs text-text-muted">Preview</span>
+            <span className="badge-neutral">Preview</span>
           </div>
           <p className="text-sm text-text-secondary">AI-assisted LaTeX editor</p>
         </div>
@@ -64,10 +77,21 @@ const LoginScreen: React.FC = () => {
         <div className="text-center">
           <button
             type="button"
-            className="btn-pill-tertiary h-9"
+            className="btn-ghost h-9"
             onClick={() => navigate('/auth/login/email')}
           >
             Sign in with email
+          </button>
+        </div>
+
+        <div className="mt-3 border-t border-white/[0.08] pt-3 text-center">
+          <button
+            type="button"
+            className="btn-secondary h-9 w-full"
+            onClick={handleAdminMode}
+            disabled={loading || adminLoading}
+          >
+            {adminLoading ? 'Entering Admin Mode...' : 'Enter Admin Mode'}
           </button>
         </div>
 

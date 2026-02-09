@@ -1,14 +1,34 @@
-import { AIProvider, AICompletionOptions, MistralResponseSchema, MistralStreamChunkSchema, ModelCapabilities } from '../types';
-import { z } from 'zod';
+import {
+  AIProvider,
+  AICompletionOptions,
+  MistralResponseSchema,
+  MistralStreamChunkSchema,
+  ModelCapabilities,
+  AIRequestContext,
+} from '../types';
+import { AIProviderId } from '../providerIds';
 
 const DEFAULT_MODEL = 'mistral-tiny';
 const BASE_URL = 'https://api.mistral.ai/v1/chat/completions';
+const BASE_HOST = 'api.mistral.ai';
+
+const assertEgressAllowed = (context?: AIRequestContext) => {
+  const policy = context?.egress;
+  if (!policy) return;
+  const allowed = policy.allowedHosts.map((host) => host.toLowerCase());
+  if (!allowed.includes(BASE_HOST)) {
+    throw new Error(`Egress policy blocks host: ${BASE_HOST}`);
+  }
+  if (BASE_URL.startsWith('http://') && !policy.allowInsecureHttp) {
+    throw new Error('Egress policy blocks insecure HTTP.');
+  }
+};
 
 /**
  * Mistral AI Provider Implementation.
  */
 export class MistralProvider implements AIProvider {
-  readonly id = 'mistral';
+  readonly id: AIProviderId = 'mistral';
   readonly name = 'Mistral AI';
 
   constructor(private apiKey: string) {}
@@ -35,7 +55,8 @@ export class MistralProvider implements AIProvider {
   /**
    * Implementation of generate with retry logic.
    */
-  async generate(prompt: string, options?: AICompletionOptions): Promise<string> {
+  async generate(prompt: string, options?: AICompletionOptions, context?: AIRequestContext): Promise<string> {
+    assertEgressAllowed(context);
     const maxRetries = 3;
     let lastError: Error | null = null;
 
@@ -84,7 +105,12 @@ export class MistralProvider implements AIProvider {
   /**
    * Implementation of generateStream.
    */
-  async *generateStream(prompt: string, options?: AICompletionOptions): AsyncGenerator<string, void, unknown> {
+  async *generateStream(
+    prompt: string,
+    options?: AICompletionOptions,
+    context?: AIRequestContext,
+  ): AsyncGenerator<string, void, unknown> {
+    assertEgressAllowed(context);
     const response = await fetch(BASE_URL, {
       method: 'POST',
       headers: {

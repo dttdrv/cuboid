@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import Editor, { Monaco } from '@monaco-editor/react';
+import Editor, { Monaco, loader } from '@monaco-editor/react';
+
+loader.config({
+  paths: {
+    vs: '/monaco/vs',
+  },
+});
 
 interface EditorMarker {
   startLineNumber: number;
@@ -166,11 +172,13 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         onChange={handleChange}
         theme="vs-dark"
         onMount={handleEditorDidMount}
+        loading={<div className="flex h-full items-center justify-center bg-charcoal-900 text-sm text-text-muted">Loading editor runtime...</div>}
         options={{
           minimap: { enabled: false },
           wordWrap: 'on',
           scrollBeyondLastLine: false,
           fontSize: 14,
+          fontFamily: 'JetBrains Mono, Menlo, monospace',
           automaticLayout: true,
           glyphMargin: true,
           padding: { top: 16, bottom: 16 },

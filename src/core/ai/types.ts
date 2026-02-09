@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AIProviderId } from './providerIds';
 
 /**
  * Configuration options for an AI completion request.
@@ -12,6 +13,23 @@ export interface AICompletionOptions {
   maxTokens?: number;
   /** Additional provider-specific parameters. */
   extra?: Record<string, unknown>;
+}
+
+export interface AIEgressPolicy {
+  allowedHosts: string[];
+  allowInsecureHttp?: boolean;
+}
+
+export interface AIRequestIdentity {
+  userId?: string;
+  workspaceId?: string;
+  projectId?: string;
+  roomId?: string;
+}
+
+export interface AIRequestContext {
+  identity?: AIRequestIdentity;
+  egress?: AIEgressPolicy;
 }
 
 export interface ModelCapabilities {
@@ -31,12 +49,19 @@ export interface ModelCapabilities {
  * Configuration for the AI service (persisted).
  */
 export interface AIConfig {
+  version: 2;
   /** The active provider ID (e.g., 'mistral', 'openai'). */
-  activeProvider: string;
-  /** API Keys mapped by provider ID. */
-  apiKeys: Record<string, string>;
-  /** Default options per provider. */
-  defaults?: Record<string, AICompletionOptions>;
+  activeProvider: AIProviderId | null;
+  /** Provider records normalized by strict provider id. */
+  providers: Partial<
+    Record<
+      AIProviderId,
+      {
+        hasKey: boolean;
+        defaults?: AICompletionOptions;
+      }
+    >
+  >;
 }
 
 /**
@@ -44,7 +69,7 @@ export interface AIConfig {
  */
 export interface AIProvider {
   /** Unique identifier for the provider (e.g., 'mistral'). */
-  readonly id: string;
+  readonly id: AIProviderId;
 
   /** Display name for the provider. */
   readonly name: string;
@@ -55,7 +80,7 @@ export interface AIProvider {
    * @param options Optional configuration for the generation.
    * @returns A Promise resolving to the generated string.
    */
-  generate(prompt: string, options?: AICompletionOptions): Promise<string>;
+  generate(prompt: string, options?: AICompletionOptions, context?: AIRequestContext): Promise<string>;
 
   /**
    * Generates a streaming response for the given prompt.
@@ -63,7 +88,11 @@ export interface AIProvider {
    * @param options Optional configuration for the generation.
    * @returns An AsyncGenerator yielding chunks of the generated string.
    */
-  generateStream(prompt: string, options?: AICompletionOptions): AsyncGenerator<string, void, unknown>;
+  generateStream(
+    prompt: string,
+    options?: AICompletionOptions,
+    context?: AIRequestContext
+  ): AsyncGenerator<string, void, unknown>;
 
   /**
    * Optional capability resolver from provider-side metadata.

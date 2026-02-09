@@ -15,6 +15,13 @@ const KEYS = {
 const delay = () => new Promise(r => setTimeout(r, 100));
 const nowIso = () => new Date().toISOString();
 
+const sessionStore = (): Storage => {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    return window.sessionStorage;
+  }
+  return localStorage;
+};
+
 const readJson = <T>(key: string, fallback: T): T => {
   const raw = localStorage.getItem(key);
   if (!raw) return fallback;
@@ -84,19 +91,21 @@ export const LocalAuth = {
     provider: 'email' | 'openai' | 'github' | 'google' = 'email'
   ): Promise<{ user: User; session: Session } | { error: any }> => {
     await delay();
+    const normalizedEmail = email.trim().toLowerCase();
+    const isAdminModeUser = normalizedEmail === 'admin@cuboid.local';
     const id = btoa(email).substring(0, 12); // Deterministic ID
     const created = nowIso();
     const user: User = {
       id,
       aud: 'authenticated',
-      role: 'authenticated',
-      email,
+      role: isAdminModeUser ? 'admin' : 'authenticated',
+      email: normalizedEmail,
       email_confirmed_at: created,
       phone: '',
       confirmed_at: created,
       last_sign_in_at: created,
       app_metadata: { provider, providers: [provider] },
-      user_metadata: {},
+      user_metadata: isAdminModeUser ? { admin_mode: true } : {},
       created_at: created,
       updated_at: created,
       factors: []
@@ -108,19 +117,19 @@ export const LocalAuth = {
       token_type: 'bearer',
       user
     };
-    localStorage.setItem(KEYS.SESSION, JSON.stringify(session));
-    ensureWorkspaceSeed(user.id, email);
+    sessionStore().setItem(KEYS.SESSION, JSON.stringify(session));
+    ensureWorkspaceSeed(user.id, normalizedEmail);
     ensureInviteSeed();
     return { user, session };
   },
 
   signOut: async (): Promise<void> => {
     await delay();
-    localStorage.removeItem(KEYS.SESSION);
+    sessionStore().removeItem(KEYS.SESSION);
   },
 
   getSession: async (): Promise<{ session: Session | null }> => {
-    const json = localStorage.getItem(KEYS.SESSION);
+    const json = sessionStore().getItem(KEYS.SESSION);
     return { session: json ? JSON.parse(json) : null };
   },
 
@@ -138,7 +147,10 @@ export const LocalAuth = {
   sendMagicLink: async (email: string): Promise<{ token: string }> => {
     await delay();
     const token = crypto.randomUUID();
-    const links = readJson<MagicLinkRecord[]>(KEYS.MAGIC_LINKS, []);
+    const normalizedEmail = email.toLowerCase();
+    const links = readJson<MagicLinkRecord[]>(KEYS.MAGIC_LINKS, []).filter(
+      (link) => link.email !== normalizedEmail,
+    );
     links.push({
       email: email.toLowerCase(),
       token,
@@ -150,13 +162,12 @@ export const LocalAuth = {
 
   consumeMagicLink: async (
     email: string,
-    token?: string
+    token: string
   ): Promise<{ ok: true } | { error: string }> => {
     await delay();
+    const normalizedEmail = email.toLowerCase();
     const links = readJson<MagicLinkRecord[]>(KEYS.MAGIC_LINKS, []);
-    const match = links
-      .filter((link) => link.email === email.toLowerCase())
-      .find((link) => (token ? link.token === token : true));
+    const match = links.find((link) => link.email === normalizedEmail && link.token === token);
 
     if (!match) return { error: 'Magic link not found.' };
     if (Date.now() > match.expires_at) return { error: 'Magic link expired.' };

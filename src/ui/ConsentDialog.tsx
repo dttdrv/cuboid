@@ -27,7 +27,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal-950/80 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-charcoal-900 p-6 shadow-2xl shadow-black/40">
+      <div className="w-full max-w-md border border-white/[0.08] bg-charcoal-900 p-6 shadow-2xl shadow-black/40">
         <h2 className="text-xl font-semibold text-text-primary">Enable AI Assistance</h2>
         <p className="mt-3 text-sm text-text-secondary">
           Connect to Mistral Large for intelligent editing. Your privacy is 
@@ -43,19 +43,19 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
           placeholder="sk-..."
           value={apiKey}
           onChange={handleInputChange}
-          className="input-pill mt-2"
+          className="input-field mt-2"
         />
 
         <div className="mt-6 flex justify-end gap-3">
           <button 
             onClick={onCancel} 
-            className="btn-pill-tertiary"
+            className="btn-ghost"
           >
             Cancel
           </button>
           <button 
             onClick={handleSave} 
-            className="btn-pill-primary"
+            className="btn-primary"
           >
             Enable & Save
           </button>
