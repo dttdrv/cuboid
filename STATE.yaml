@@ -1,25 +1,26 @@
-status: overhaul_phase_execution_in_review
+status: p0_recovery_implemented_in_validation
 goals:
-  - current: Complete hard-square UI overhaul and core/backend security refactor
-  - pending: Close gates A-F with evidence-backed sign-off after active user testing
+  - current: Validate and stabilize the new agent-led editor shell after hard-reset implementation
+  - pending: Close gates A-F with evidence-backed sign-off and strict type-baseline recovery
 constraints:
   - local-first
   - no-cloud-runtime-in-this-phase
   - aesthetic: Hard-square industrial minimal with IBM Plex Sans + JetBrains Mono
   - preserve auth/workspace/project routing semantics
 decisions:
-  - ui_system: Global square-edge system with tokenized buttons/inputs/surfaces
-  - backend_boundaries: Introduced DataStore/AuthService/CryptoVault/CompileService adapter seams
-  - security_mode: Hardened local mode with encrypted AI key vault and token-validated magic links
-  - parity_mode: Prism core parity implemented; near-term items represented as local stubs/contracts
-  - agent_direction: User-controlled assistant/agent boundary with scoped autonomy only
+  - ui_system: Agent-led shell architecture with composer-centered workflow and single primary action hierarchy
+  - backend_boundaries: DataStore/AuthService/CryptoVault/CompileService seams remain active
+  - compile_mode: Hybrid auto+manual compile with queue/debounce state machine
+  - security_mode: Hardened local mode with CSP baseline and local runtime assets
+  - parity_mode: Prism direction targeted by interaction model and control posture (not pixel cloning)
 risks:
-  - preview_port_collision: Port 4173 can be occupied by stale processes, causing startup confusion
-  - lock_flow_ux: unlock screen introduced and still needs broader user testing in browser
+  - preview_port_collision: Port 4173 remains collision-prone in this environment; active serve currently on 4174
+  - strict_type_baseline: pre-existing tsc strict errors remain in legacy core/worker paths
+  - modal_consistency_gap: settings/modal/menu consistency is still partially migrated
   - production_auth: local auth/session implementation remains demo-grade for non-local deployments
   - benchmark_url_stability: Prism parity references vary across openai.com paths; parity source must be re-validated periodically
 next_steps:
-  - Keep resolving sign-in/session edge cases found during active manual testing
-  - Run and document gated evidence updates (A-F) in scorecard and critique logs
-  - Capture new showcase artifacts for Gate B/C visual sign-off
-  - Iterate remaining token cleanup and flatten residual legacy utility aliases
+  - Gather user validation feedback on the new shell and fix highest-friction flows first
+  - Capture fresh post-reset screenshots and update gate evidence docs
+  - Finish modal/menu/settings consistency sweep (P1.2)
+  - Recover strict type baseline by addressing legacy tsc failures

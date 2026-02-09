@@ -1,14 +1,16 @@
 # Cuboid Roadmap + Changelog
 
 Last updated: 2026-02-10
-Purpose: meticulous execution history + forward roadmap while overhaul is under active verification.
+Purpose: meticulous execution history plus forward roadmap while recovery implementation is under active user validation.
 
 ## 1) Program Snapshot
-- Product direction: Prism-style platform with user-controlled assistant/agent boundary.
-- Runtime mode: local-first, parity stubs for near-term cloud-era capabilities.
-- Program phase: `overhaul_phase_execution_in_review`.
-- Gate status: A-F implemented, currently `IN_REVIEW` pending final evidence closure.
-- External benchmark status: `openai.com/prism` reachable; legacy `openai.com/index/prism` path is unstable (`404` observed on 2026-02-10 UTC).
+- Product direction: Prism-style AI-native writing flow with explicit user control.
+- Runtime mode: local-first.
+- Program phase: `p0_recovery_implemented_in_validation`.
+- Current gate posture: A-F implemented at least once, now in targeted re-validation after hard reset.
+- External benchmark status:
+  - `https://openai.com/prism` reachable (checked 2026-02-10)
+  - `https://openai.com/index/prism` still unstable (`404` observed 2026-02-10)
 
 ## 2) Health Snapshot
 ### Build
@@ -22,89 +24,114 @@ Purpose: meticulous execution history + forward roadmap while overhaul is under 
 - Verified: 2026-02-10
 - Result: 4 test files, 10 tests passing
 
-### Local serving and link status
-- Link under test: `http://127.0.0.1:4173`
-- HTTP probe: `200 OK` (checked 2026-02-10 local session)
-- Port state: listener confirmed on `127.0.0.1:4173` (`node.exe` process observed)
-- Known issue pattern: startup can still fail if a stale preview process holds the port.
+### Typecheck
+- Command: `set PATH=C:\Progra~1\nodejs;%PATH% && C:\Progra~1\nodejs\npx.cmd tsc --noEmit`
+- Status: fail (pre-existing strict-type baseline issues in legacy core/worker files)
+- Impact: does not block Vite build/test but blocks strict TS hygiene closure.
+
+### Local serving status
+- Port `4173`: occupied by existing process in this environment.
+- Active validated server: `http://127.0.0.1:4174`
+- Probe result: `HTTP 200` (2026-02-10)
 
 ## 3) Completed Work (Detailed)
-### Design system and UI overhaul
-- Migrated to hard-square visual system and unified class primitives.
-- Reworked dashboard/editor/auth/workspace/modals to shared style language.
-- Added consistency artifacts and gate scoring docs under `Plan/`.
+### P0 hard reset implementation
+- Replaced monolithic editor layout with shell-based composition:
+  - `src/ui/editor-shell/EditorShell.tsx`
+  - `src/ui/editor-shell/LeftRail.tsx`
+  - `src/ui/editor-shell/ComposerPane.tsx`
+  - `src/ui/editor-shell/ArtifactPane.tsx`
+  - `src/ui/editor-shell/RunStatusBar.tsx`
+  - `src/ui/editor-shell/RightDrawer.tsx`
+  - `src/ui/editor-shell/contracts.ts`
+- Rebuilt `src/ui/EditorPage.tsx` as orchestration container with persistent UI session state.
 
-### Core architecture refactor
-- Added data/auth/compile/security adapter seams:
-  - `DataStore`
-  - `AuthService`
-  - `CompileService`
-  - `CryptoVault`
-- Added AI provider normalization (`AIProviderId`) and egress controls.
+### Compile and operation behavior
+- Added compile trigger/state/meta types in `src/core/compile/types.ts`.
+- Implemented hybrid compile flow (auto debounce + manual) with queue semantics.
+- Added first actionable compile error jump logic and activity logging integration.
 
-### Security and reliability hardening
-- Enforced token-bound magic link consumption.
-- Switched compile worker path from remote dependency to local script.
-- Added CSP baseline in `index.html`.
-- Fixed sign-in regression caused by HKDF extractability assumptions.
-- Added local admin mode entry path for guaranteed testing access.
+### Reliability and runtime fixes
+- Stabilized Monaco runtime loading with local loader path in `src/ui/editor/MonacoEditor.tsx`.
+- Added local Monaco assets under `public/monaco/vs`.
+- Removed ambiguous editor loading dead-state by adding explicit loading fallback.
+
+### Dashboard direction correction
+- Reworked `src/ui/Dashboard.tsx` to emphasize:
+  - `Continue with AI`
+  - `New agentic session`
+- Reduced header control clutter by compacting filter/sort controls.
+
+### Design system debt reduction
+- Removed legacy alias classes from `src/index.css`:
+  - `btn-pill-primary`, `btn-pill-secondary`, `btn-pill-tertiary`
+  - `input-pill`, `selection-pill`, `center-card`
+- Updated `src/ui/components/CenterCard.tsx` to `surface-card`.
+
+### New type surfaces
+- Added:
+  - `src/core/editor/types.ts`
+  - `src/core/ai/agenticTypes.ts`
+- Extended:
+  - `src/core/data/types.ts` with `UiSessionState`
 
 ## 4) Critical Incident Log
-### 2026-02-10: sign-in failure after refactor
-- Symptom: sign-in error during local testing.
-- Root cause: HKDF key import/export constraints were violated by extractability assumptions in session key wrapping flow.
-- Fixes applied:
-  1. Restored non-extractable HKDF master key behavior.
-  2. Made wrapped master-key persistence best-effort/non-fatal.
-  3. Kept unlock flow support without allowing wrapping failure to break auth.
-  4. Added admin entry mode on login to preserve test continuity.
-- Post-fix status: build/test pass.
+### 2026-02-10: direction mismatch and clutter correction
+- Symptom: editor perceived as cluttered, non-sensical, not working reliably.
+- Root cause cluster:
+  1. Monolithic editor component ownership.
+  2. Duplicated control surfaces with no hierarchy.
+  3. AI workflow treated as secondary tab instead of primary interaction model.
+- Resolution:
+  1. P0 shell split and orchestration rewrite.
+  2. Compile state machine + debounce queue.
+  3. Agent-led composer centralization with explicit apply/reject flow.
 
-### 2026-02-10: preview/startup confusion on port 4173
-- Symptom: user unable to access expected preview route.
+### 2026-02-10: Monaco mount reliability under CSP/local mode
+- Symptom: editor could present prolonged loading behavior in strict runtime contexts.
+- Fix:
+  1. Forced local loader path (`/monaco/vs`) in Monaco setup.
+  2. Shipped local monaco assets in `public/monaco/vs`.
+  3. Added deterministic loading fallback UI.
+
+### 2026-02-10: 4173 port collision while serving
+- Symptom: user requested run but strict port startup failed.
 - Findings:
-  1. Listener exists on `127.0.0.1:4173`.
-  2. Direct HTTP probe returns `200 OK`.
-  3. Failure mode likely process/port collision or stale process state, not absent build artifacts.
+  1. `4173` already bound by another node process.
+  2. Launching on `4174` succeeds and serves expected app.
 - Operational handling:
-  1. Confirm active listener and response before re-running preview.
-  2. Use strict host/port launch if needed.
-  3. Fall back to alternate port when collision persists.
+  1. keep 4173 collision note in docs,
+  2. default to alternate explicit port when occupied.
 
 ## 5) Roadmap (Next 3 Sprints)
-### Sprint 1: Gate closure and evidence
-1. Capture post-overhaul screenshots in `showcase/after`.
-2. Close Gate A-C with explicit visual evidence.
-3. Close Gate D-E with runtime behavior notes from manual QA.
+### Sprint 1: Validation and gate evidence closure
+1. Capture fresh screenshots for new shell in `showcase/after`.
+2. Close Gate B with user-validated workflow feedback.
+3. Close Gate A/C after final style and modal consistency checks.
 
-### Sprint 2: Agentic UX control model
-1. Keep assistant/agent boundary thin and user-directed.
-2. Add explicit action modes:
-   - Suggest-only
-   - Guided apply
-   - Autonomous run (scoped and reversible)
-3. Add clearer run transparency in activity timelines.
+### Sprint 2: Agentic UX polish
+1. Improve proposal explainability and action trace quality.
+2. Refine right-drawer interaction density and information hierarchy.
+3. Add richer activity timeline grouping and filters.
 
-### Sprint 3: Security/model hardening follow-up
-1. Replace deterministic local user ID model.
-2. Tighten AI logs retention policy (optional in-memory mode).
-3. Add stricter collaboration signaling controls when infra is available.
+### Sprint 3: Technical debt and strictness closure
+1. Resolve pre-existing `tsc --noEmit` failures in core/worker paths.
+2. Finalize menu/modal/settings consistency pass.
+3. Re-run full validation matrix and mark eligible gates `PASSED`.
 
 ## 6) Immediate Priorities While User Tests
-1. Resolve any remaining login/session edge cases quickly.
-2. Stabilize preview/dev startup instructions per-machine.
-3. Keep roadmap/docs in lockstep with every tested fix.
-4. Continue tightening agentic controls so autonomy remains explicitly user-scoped.
+1. Collect concrete UX friction notes from live testing.
+2. Patch high-friction interaction points first (navigation, compile feedback, drawer friction).
+3. Keep docs synchronized after every material UI/flow change.
 
 ## 7) Compact Changelog
 ### 2026-02-10
-- Verified build and tests with explicit Node PATH override.
-- Fixed sign-in failure from HKDF key handling mismatch.
-- Added admin mode entry for local testing continuity.
-- Verified local endpoint response at `127.0.0.1:4173` and documented port collision behavior.
-- Updated plan/roadmap/changelog/state docs for current overhaul status and benchmark-source stability.
+- Implemented P0 hard-reset editor shell architecture with agent-led composer center.
+- Rewrote `EditorPage` orchestration with compile queue/debounce model and UI session persistence.
+- Added local Monaco loader path and shipped `public/monaco/vs` assets.
+- Reworked dashboard toward `Continue with AI` and `New agentic session` actions.
+- Removed deprecated alias style classes and migrated card primitive naming.
+- Verified build/tests pass and documented active runtime link on `127.0.0.1:4174`.
 
-### 2026-02-09
-- Implemented phased overhaul program across UI/core/security/parity.
-- Added gate scoring and self-critique artifacts.
-- Added parity matrix/checklist and baseline behavior map.
+### 2026-02-09 to 2026-02-10 (prior)
+- Completed multi-phase overhaul scaffolding, sign-in incident fixes, parity artifacts, and security/docs baseline updates.

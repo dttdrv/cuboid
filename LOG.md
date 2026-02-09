@@ -53,3 +53,41 @@
     - Updated `Plan/ROADMAP_CHANGELOG.md` with incident handling and serving diagnostics.
     - Updated `STATE.yaml` to remove stale toolchain-gap risk and add active preview/parity-link risks.
     - Updated gate/parity threshold artifacts to remove stale validation assumptions and align with current session truth.
+- [2026-02-10] **P0 Recovery Hard Reset + Meticulous Governance Refresh**
+  - **Context**: User feedback flagged current editor as cluttered, directionless, and functionally unreliable.
+  - **Implementation (UI/IA)**:
+    - Replaced monolithic editor flow with shell-based composition:
+      - `src/ui/editor-shell/EditorShell.tsx`
+      - `src/ui/editor-shell/LeftRail.tsx`
+      - `src/ui/editor-shell/ComposerPane.tsx`
+      - `src/ui/editor-shell/ArtifactPane.tsx`
+      - `src/ui/editor-shell/RunStatusBar.tsx`
+      - `src/ui/editor-shell/RightDrawer.tsx`
+      - `src/ui/editor-shell/contracts.ts`
+    - Rewrote `src/ui/EditorPage.tsx` as orchestration container with:
+      - agent-led composer-first flow,
+      - unified drawer modes (project info/comments/logs/activity),
+      - compile queue/debounce model (`idle/queued/compiling/success/error`),
+      - persisted UI session state.
+  - **Reliability**:
+    - Stabilized Monaco runtime loading by configuring local loader path in `src/ui/editor/MonacoEditor.tsx`.
+    - Copied Monaco runtime assets into `public/monaco/vs` for local CSP-safe loading.
+    - Updated `src/ui/PdfViewer.tsx` placeholder behavior to tokenized layout.
+  - **Dashboard Direction**:
+    - Reworked `src/ui/Dashboard.tsx` to prioritize `Continue with AI` and `New agentic session`.
+  - **Design Debt Cleanup**:
+    - Removed legacy alias classes from `src/index.css` (`btn-pill-*`, `input-pill`, `selection-pill`, `center-card`).
+    - Migrated `CenterCard` primitive use to `surface-card`.
+  - **Types/Contracts Added**:
+    - `src/core/editor/types.ts`
+    - `src/core/ai/agenticTypes.ts`
+    - Extended `src/core/compile/types.ts` and `src/core/data/types.ts` (`UiSessionState`).
+  - **Validation**:
+    - `npm run build` -> pass.
+    - `npm test -- --run` -> pass (4 files, 10 tests).
+    - `npx tsc --noEmit` -> fail due pre-existing strict-type baseline issues in unrelated legacy files.
+  - **Runtime Serve**:
+    - Port `4173` occupied by existing process.
+    - Started and validated dev server on `http://127.0.0.1:4174` (`HTTP 200`).
+  - **Governance Update**:
+    - Meticulously refreshed `Plan/PLAN.md`, `Plan/ROADMAP_CHANGELOG.md`, `LOG.md`, `STATE.yaml`, and gate artifacts to reflect the new recovery posture and current risks.
