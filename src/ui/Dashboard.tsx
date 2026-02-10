@@ -5,8 +5,8 @@ import { Project } from '../core/data/types';
 import ProjectCreationModal, { ProjectTemplate } from './modals/ProjectCreationModal';
 import ImportProjectModal from './modals/ImportProjectModal';
 import { useAuth } from '../core/auth/AuthProvider';
-import { listStoredProjectHandles, openDirectory, runtimeCapabilities } from '../core/storage/fs';
-import { Bot, FolderOpen, Plus, Search } from 'lucide-react';
+import { listStoredProjectHandles, openDirectory } from '../core/storage/fs';
+import { Plus } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ const Dashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'yours' | 'shared'>('yours');
   const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent');
@@ -66,177 +67,130 @@ const Dashboard: React.FC = () => {
   }, [projects, query, sortBy]);
 
   const renderedProjects = activeFilter === 'shared' ? [] : sortedProjects;
-  const latestProject = sortedProjects[0];
+  const displayProjects = renderedProjects.length > 0
+    ? renderedProjects
+    : [{
+        id: '__placeholder__',
+        name: 'New Project',
+        created_at: new Date().toISOString(),
+        updated_at: new Date(Date.now() - (11 * 24 * 60 * 60 * 1000)).toISOString(),
+        owner_id: 'placeholder',
+      } as Project];
 
   return (
-    <div className="min-h-screen bg-charcoal-950 p-2 text-text-primary">
-      <div className="mx-auto flex min-h-[calc(100vh-1rem)] w-full max-w-[1540px] overflow-hidden border border-white/[0.08] bg-charcoal-900">
-        <aside className="w-72 border-r border-white/[0.08] bg-charcoal-950 p-4">
-          <div className="mb-7 flex items-center justify-between">
-            <p className="text-sm text-text-secondary">Workspace</p>
-            <button type="button" className="btn-icon h-9 w-9" title="Local workspace">
-              <FolderOpen size={16} />
-            </button>
+    <div className="min-h-screen bg-page-bg p-3 text-text-primary">
+      <div className="mx-auto grid h-[calc(100vh-1.5rem)] max-w-[1500px] grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="panel flex min-h-0 flex-col">
+          <div className="border-b border-border-subtle p-3">
+            <p className="text-sm font-semibold text-text-primary">Projects</p>
           </div>
-          <p className="mb-4 text-3xl font-medium text-white/95">Projects</p>
-          <div className="space-y-1">
+          <nav className="space-y-1 p-2">
             <button
               type="button"
-              className={`w-full border border-transparent px-3 py-2 text-left text-sm transition-colors ${
-                activeFilter === 'all'
-                  ? 'selection-row text-text-primary'
-                  : 'text-text-secondary hover:border-white/[0.08] hover:bg-charcoal-850'
-              }`}
               onClick={() => setActiveFilter('all')}
+              className={`w-full px-2 py-1 text-left text-sm ${activeFilter === 'all' ? 'bg-surface-muted text-text-primary' : 'text-text-secondary'}`}
             >
-              All Projects
+              All
             </button>
             <button
               type="button"
-              className={`w-full border border-transparent px-3 py-2 text-left text-sm transition-colors ${
-                activeFilter === 'yours'
-                  ? 'selection-row text-text-primary'
-                  : 'text-text-secondary hover:border-white/[0.08] hover:bg-charcoal-850'
-              }`}
               onClick={() => setActiveFilter('yours')}
+              className={`w-full px-2 py-1 text-left text-sm ${activeFilter === 'yours' ? 'bg-surface-muted text-text-primary' : 'text-text-secondary'}`}
             >
-              Your Projects
+              Yours
             </button>
             <button
               type="button"
-              className={`w-full border border-transparent px-3 py-2 text-left text-sm transition-colors ${
-                activeFilter === 'shared'
-                  ? 'selection-row text-text-primary'
-                  : 'text-text-secondary hover:border-white/[0.08] hover:bg-charcoal-850'
-              }`}
               onClick={() => setActiveFilter('shared')}
+              className={`w-full px-2 py-1 text-left text-sm ${activeFilter === 'shared' ? 'bg-surface-muted text-text-primary' : 'text-text-secondary'}`}
             >
-              Shared with you
+              Shared
             </button>
-          </div>
+          </nav>
         </aside>
 
-        <main className="flex-1 p-6">
-          <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight">Your Projects</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search"
-                  className="input-field w-72 pl-9"
-                />
-              </div>
-              <select
-                value={`${activeFilter}:${sortBy}`}
-                onChange={(event) => {
-                  const [nextFilter, nextSort] = event.target.value.split(':');
-                  setActiveFilter(nextFilter as 'all' | 'yours' | 'shared');
-                  setSortBy(nextSort as 'recent' | 'name');
-                }}
-                className="select-field w-40 text-text-secondary"
-              >
-                <option value="yours:recent">Your · Recent</option>
-                <option value="all:recent">All · Recent</option>
-                <option value="yours:name">Your · Name</option>
-                <option value="shared:recent">Shared · Recent</option>
-              </select>
-
-              {latestProject && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetWorkspace = workspaceId || selectedWorkspaceId || latestProject.workspace_id;
-                    if (targetWorkspace) {
-                      navigate(`/app/${targetWorkspace}/projects/${latestProject.id}/editor`);
-                    }
-                  }}
-                  className="btn-secondary"
-                >
-                  <Bot size={14} />
-                  Continue with AI
-                </button>
-              )}
-
-              <button type="button" onClick={() => setIsImportModalOpen(true)} className="btn-secondary">
+        <main className="panel min-h-0 overflow-hidden">
+          <header className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-3">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search projects"
+              className="input-field h-9 min-w-[220px] max-w-[420px] flex-1 px-2 text-sm"
+            />
+            <select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as 'recent' | 'name')}
+              className="select-field h-9 w-[130px] px-2 text-sm"
+            >
+              <option value="recent">Recent</option>
+              <option value="name">Name</option>
+            </select>
+            <div className="relative">
+              <button type="button" onClick={() => setIsImportMenuOpen((open) => !open)} className="btn-secondary h-9 px-3 text-sm">
                 Import
               </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const handle = await openDirectory();
-                  if (handle) setPathHint(handle.pathHint);
-                }}
-                disabled={!runtimeCapabilities.fileSystemAccessSupported}
-                className="btn-secondary disabled:opacity-40"
-                title={runtimeCapabilities.fileSystemAccessSupported ? 'Open folder from local disk' : 'File System Access API unavailable in this browser'}
-              >
-                Open Folder
-              </button>
-              <button type="button" onClick={() => setIsCreationModalOpen(true)} className="btn-primary">
-                <Plus size={14} />
-                New agentic session
-              </button>
-            </div>
-          </header>
-
-          <div className="mb-3 text-xs text-text-muted">
-            {pathHint ? `Path: ${pathHint}` : 'Path: local workspace sandbox'}
-          </div>
-
-          {error && <p className="inline-notice-error mb-3">{error}</p>}
-          {loading && renderedProjects.length === 0 && <div className="text-text-secondary">Loading projects...</div>}
-
-          {!loading && renderedProjects.length === 0 && (
-            <section className="flex min-h-[65vh] items-center justify-center border border-white/[0.08] bg-charcoal-900">
-              <div className="max-w-xl text-center">
-                <h2 className="text-2xl font-semibold">No projects yet</h2>
-                <p className="mt-3 text-sm text-text-secondary">
-                  Start a new agentic writing session or import from local/GitHub.
-                </p>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                  <button type="button" onClick={() => setIsCreationModalOpen(true)} className="btn-primary">
-                    <Bot size={14} />
-                    New Agentic Session
+              {isImportMenuOpen && (
+                <div className="absolute right-0 top-10 z-20 w-[230px] border border-border-subtle bg-panel-raised p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsImportMenuOpen(false);
+                      setIsImportModalOpen(true);
+                    }}
+                    className="block w-full px-2 py-2 text-left text-sm text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                  >
+                    Archive (.zip, .tar.gz)
                   </button>
-                  <button type="button" onClick={() => setIsImportModalOpen(true)} className="btn-secondary">
-                    Import
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsImportMenuOpen(false);
+                      const handle = await openDirectory();
+                      if (handle) setPathHint(handle.pathHint);
+                    }}
+                    className="block w-full px-2 py-2 text-left text-sm text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                  >
+                    Folder
                   </button>
                 </div>
-              </div>
-            </section>
-          )}
+              )}
+            </div>
+            <button type="button" onClick={() => setIsCreationModalOpen(true)} className="btn-primary h-9 px-3 text-sm">
+              <Plus size={14} />
+              New
+            </button>
+          </header>
 
-          {renderedProjects.length > 0 && (
-            <section className="overflow-hidden border border-white/[0.08] bg-charcoal-900/60">
-              <div className="grid grid-cols-[2fr_1fr_1fr_120px] border-b border-white/[0.08] bg-charcoal-850 px-5 py-2 text-xs uppercase tracking-wide text-text-muted">
-                <span>Project</span>
-                <span>Last Edited</span>
-                <span>Workflow</span>
-                <span>Status</span>
-              </div>
-              {renderedProjects.map((project) => (
+          <div className="h-[calc(100%-52px)] overflow-y-auto p-3">
+            {error && <p className="mb-2 text-sm text-danger">{error}</p>}
+            {pathHint && <p className="mb-2 text-xs text-text-muted">{pathHint}</p>}
+            {loading && renderedProjects.length === 0 && <div className="text-sm text-text-secondary">Loading projects...</div>}
+
+            <div className="space-y-1">
+              {displayProjects.map((project) => (
                 <button
                   key={project.id}
                   type="button"
                   onClick={() => {
+                    if (project.id === '__placeholder__') {
+                      setIsCreationModalOpen(true);
+                      return;
+                    }
                     const targetWorkspace = workspaceId || selectedWorkspaceId || project.workspace_id;
                     if (targetWorkspace) {
                       navigate(`/app/${targetWorkspace}/projects/${project.id}/editor`);
                     }
                   }}
-                  className="grid w-full grid-cols-[2fr_1fr_1fr_120px] items-center border-b border-white/[0.08] bg-charcoal-900/60 px-5 py-3 text-left transition-colors last:border-b-0 hover:bg-charcoal-850"
+                  className="flex w-full items-center justify-between border border-border-subtle bg-panel-raised px-3 py-2 text-left hover:bg-surface-muted"
                 >
-                  <span className="text-sm font-medium">{project.name}</span>
-                  <span className="text-xs text-text-secondary">{new Date(project.updated_at || project.created_at).toLocaleString()}</span>
-                  <span className="text-xs text-text-secondary">Agent-led</span>
-                  <span className="text-xs text-text-muted">Local</span>
+                  <span className="truncate text-sm text-text-primary">{project.name}</span>
+                  <span className="text-xs text-text-muted">
+                    {Math.max(1, Math.floor((Date.now() - new Date(project.updated_at || project.created_at).getTime()) / (1000 * 60 * 60 * 24)))}d
+                  </span>
                 </button>
               ))}
-            </section>
-          )}
+            </div>
+          </div>
         </main>
       </div>
 

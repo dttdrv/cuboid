@@ -136,6 +136,9 @@ export interface UiSessionState {
   layoutMode: 'split' | 'focus_composer' | 'focus_editor' | 'focus_preview';
   rightDrawerMode: 'project_info' | 'comments' | 'logs' | 'activity';
   rightDrawerOpen: boolean;
+  uiMode?: 'writing' | 'review' | 'collaboration' | 'focus';
+  leftRailMode?: 'files' | 'chats';
+  leftRailCollapsed?: boolean;
   updatedAt: string;
 }
 

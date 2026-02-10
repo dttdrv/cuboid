@@ -177,11 +177,18 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           minimap: { enabled: false },
           wordWrap: 'on',
           scrollBeyondLastLine: false,
-          fontSize: 14,
+          fontSize: 15,
           fontFamily: 'JetBrains Mono, Menlo, monospace',
           automaticLayout: true,
           glyphMargin: true,
-          padding: { top: 16, bottom: 16 },
+          lineNumbersMinChars: 2,
+          lineDecorationsWidth: 10,
+          scrollbar: {
+            verticalScrollbarSize: 10,
+            horizontalScrollbarSize: 10,
+            alwaysConsumeMouseWheel: false,
+          },
+          padding: { top: 14, bottom: 80 },
         }}
       />
     </div>

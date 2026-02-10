@@ -121,3 +121,7 @@ implementation_plan.md
 walkthrough.md
 *.log
 .DS_Store
+
+# Local planning and inspiration folders (keep tracked files as-is, ignore new ones)
+Plan/
+prism_inspo_ui/

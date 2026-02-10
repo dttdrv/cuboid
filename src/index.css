@@ -1,116 +1,135 @@
 @import "tailwindcss";
 
 @theme {
-  --color-charcoal-950: #0d0e0d;
-  --color-charcoal-900: #1a1a1a;
-  --color-charcoal-850: #202020;
-  --color-charcoal-800: #2a2a2a;
-  --color-charcoal-700: #333333;
-  --color-text-primary: #f2f2f2;
-  --color-text-secondary: #b6b6b6;
-  --color-text-muted: #8a8a8a;
-  --color-accent: #0097d5;
-  --color-danger: #d64c4c;
-  --color-success: #3fbf7f;
-  --color-warning: #e1b84a;
-  --color-accent-strong: #006487;
-  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-charcoal-950: #111317;
+  --color-charcoal-900: #171a20;
+  --color-charcoal-850: #1d2129;
+  --color-charcoal-800: #232935;
+  --color-charcoal-700: #2f3644;
+  --color-page-bg: #111317;
+  --color-panel-bg: #171a20;
+  --color-panel-raised: #1d2129;
+  --color-surface-rail: #151920;
+  --color-surface-editor: #11151c;
+  --color-surface-drawer: #1b2028;
+  --color-surface-elevated: #1f242d;
+  --color-surface-muted: #202632;
+  --color-border-subtle: #2c3441;
+  --color-text-primary: #eef2f7;
+  --color-text-secondary: #bdc6d3;
+  --color-text-muted: #8d97a6;
+  --color-accent: #2f6fe4;
+  --color-accent-strong: #255bc0;
+  --color-danger: #d65b5b;
+  --color-success: #41a96f;
+  --color-warning: #cf9e3a;
   --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, monospace;
 }
 
 @layer base {
-  *,
-  *::before,
-  *::after {
-    border-radius: 0 !important;
+  * {
+    box-sizing: border-box;
   }
 
   body {
-    @apply bg-charcoal-950 text-text-primary font-sans antialiased;
+    @apply bg-page-bg text-text-primary font-sans antialiased;
+    margin: 0;
     overflow-x: hidden;
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-charcoal-950;
+    background: #0f1217;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-charcoal-800;
+    background: #2a313d;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-charcoal-700;
+    background: #374150;
   }
 }
 
-/* Layout surfaces */
 .panel {
-  @apply bg-charcoal-900 border border-white/[0.08];
+  @apply border border-border-subtle bg-panel-bg;
 }
 
 .surface-card {
-  @apply w-full max-w-[440px] border border-white/[0.08] bg-charcoal-900 px-6 py-7 shadow-2xl shadow-black/40 sm:px-8 sm:py-8;
+  @apply w-full max-w-[440px] border border-border-subtle bg-panel-bg px-6 py-7 sm:px-8 sm:py-8;
+}
+
+.surface-rail {
+  background: var(--color-surface-rail);
+}
+
+.surface-editor {
+  background: var(--color-surface-editor);
+}
+
+.surface-drawer {
+  background: var(--color-surface-drawer);
+}
+
+.surface-elevated {
+  background: var(--color-surface-elevated);
 }
 
 .surface-panel {
-  @apply border border-white/[0.08] bg-charcoal-900;
+  @apply border border-border-subtle bg-panel-bg;
 }
 
 .surface-muted {
-  @apply border border-white/[0.08] bg-charcoal-850;
+  @apply border border-border-subtle bg-surface-muted;
 }
 
 .surface-contrast {
-  @apply border border-white/[0.08] bg-charcoal-950;
+  @apply border border-border-subtle bg-page-bg;
 }
 
-/* Form controls */
 .input-field {
-  @apply h-11 w-full border border-white/[0.08] bg-charcoal-850 px-4 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
+  @apply h-10 w-full border border-border-subtle bg-panel-raised px-3 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent;
 }
 
 .select-field {
-  @apply h-11 w-full border border-white/[0.08] bg-charcoal-850 px-4 text-sm text-text-primary outline-none transition-colors focus:border-accent;
+  @apply h-10 w-full border border-border-subtle bg-panel-raised px-3 text-sm text-text-primary outline-none focus:border-accent;
 }
 
 .textarea-field {
-  @apply w-full resize-none border border-white/[0.08] bg-charcoal-850 p-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
+  @apply w-full resize-none border border-border-subtle bg-panel-raised p-3 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent;
 }
 
 .input-error-slot {
   @apply mt-1 block min-h-5 text-xs text-danger;
 }
 
-/* Button system */
 .btn-primary {
-  @apply inline-flex h-11 items-center justify-center gap-2 border border-white bg-white px-5 text-sm font-medium text-black transition-colors hover:bg-white/90 disabled:opacity-50;
+  @apply inline-flex h-10 items-center justify-center gap-2 border border-accent bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex h-11 items-center justify-center gap-2 border border-white/[0.08] bg-charcoal-850 px-5 text-sm font-medium text-text-primary transition-colors hover:bg-charcoal-800 disabled:opacity-50;
+  @apply inline-flex h-10 items-center justify-center gap-2 border border-border-subtle bg-panel-raised px-4 text-sm font-medium text-text-primary transition-colors hover:bg-surface-muted disabled:opacity-50;
 }
 
 .btn-ghost {
-  @apply inline-flex h-11 items-center justify-center border border-transparent px-4 text-sm text-text-secondary transition-colors hover:border-white/[0.08] hover:bg-charcoal-850 hover:text-text-primary disabled:opacity-50;
+  @apply inline-flex h-10 items-center justify-center border border-transparent px-3 text-sm text-text-secondary transition-colors hover:border-border-subtle hover:bg-surface-muted hover:text-text-primary disabled:opacity-50;
 }
 
 .btn-danger {
-  @apply inline-flex h-11 items-center justify-center gap-2 border border-danger/50 bg-danger/15 px-5 text-sm font-medium text-danger transition-colors hover:bg-danger/25 disabled:opacity-50;
+  @apply inline-flex h-10 items-center justify-center gap-2 border border-danger bg-danger/15 px-4 text-sm font-medium text-danger transition-colors hover:bg-danger/25 disabled:opacity-50;
 }
 
 .btn-icon {
-  @apply inline-flex h-10 w-10 items-center justify-center border border-white/[0.08] bg-charcoal-850 text-text-secondary transition-colors hover:bg-charcoal-800 hover:text-text-primary disabled:opacity-50;
+  @apply inline-flex h-9 w-9 items-center justify-center border border-border-subtle bg-panel-raised text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary disabled:opacity-50;
 }
 
-/* Lists and tabs */
 .selection-row {
-  @apply bg-charcoal-800;
+  @apply bg-surface-muted;
 }
 
 .tab-button {
@@ -122,7 +141,20 @@
 }
 
 .badge-neutral {
-  @apply inline-flex items-center border border-white/[0.08] bg-charcoal-850 px-2 py-1 text-xs text-text-secondary;
+  @apply inline-flex items-center border border-border-subtle bg-panel-raised px-2 py-1 text-xs text-text-secondary;
+}
+
+.subtle-hover {
+  background: transparent;
+  transition: background-color 150ms ease;
+}
+
+.subtle-hover:hover {
+  background: #232a35;
+}
+
+.state-active {
+  background: #2a3240;
 }
 
 .inline-notice-error {
@@ -146,34 +178,34 @@
 }
 
 .comment-range-highlight {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  background: rgba(47, 111, 228, 0.15);
 }
 
 .gutter-error {
-  background: radial-gradient(circle, var(--color-danger) 45%, transparent 46%) center/10px 10px no-repeat;
+  background: #d65b5b;
 }
 
 .gutter-warning {
-  background: radial-gradient(circle, var(--color-warning) 45%, transparent 46%) center/10px 10px no-repeat;
+  background: #cf9e3a;
 }
 
 .gutter-comment {
-  background: radial-gradient(circle, var(--color-accent) 45%, transparent 46%) center/10px 10px no-repeat;
+  background: #2f6fe4;
 }
 
 .ghost-diff-proposed {
-  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  background: rgba(65, 169, 111, 0.14);
 }
 
 .ghost-diff-accepted {
-  background: color-mix(in srgb, var(--color-success) 20%, transparent);
+  background: rgba(65, 169, 111, 0.2);
 }
 
 .ghost-diff-rejected {
-  background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+  background: rgba(214, 91, 91, 0.18);
 }
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-charcoal-800) var(--color-charcoal-950);
+  scrollbar-color: #2a313d #10141a;
 }
