@@ -11,9 +11,9 @@ const toBase64 = (bytes: Uint8Array): string => {
   return btoa(bin);
 };
 
-const fromBase64 = (value: string): Uint8Array => {
+const fromBase64 = (value: string): Uint8Array<ArrayBuffer> => {
   const bin = atob(value);
-  return Uint8Array.from(bin, (char) => char.codePointAt(0) || 0);
+  return Uint8Array.from(bin, (char) => char.codePointAt(0) || 0) as Uint8Array<ArrayBuffer>;
 };
 
 const getStorage = (): Storage | null => {
@@ -43,11 +43,11 @@ export const persistWrappedMasterKey = async (
 
   try {
     const wrappingKey = await importSessionWrappingKey(sessionKeyBase64);
-    const rawMasterKey = new Uint8Array(await globalThis.crypto.subtle.exportKey('raw', masterKey));
-    const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+    const rawMasterKey = new Uint8Array(await globalThis.crypto.subtle.exportKey('raw', masterKey)) as Uint8Array<ArrayBuffer>;
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(12)) as Uint8Array<ArrayBuffer>;
     const ciphertext = new Uint8Array(
       await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, rawMasterKey),
-    );
+    ) as Uint8Array<ArrayBuffer>;
 
     const payload: WrappedKeyPayload = {
       iv: toBase64(iv),

@@ -40,8 +40,8 @@ export const useDataLayer = () => {
       const project = await dataStore.createProject(user.id, name, selectedWorkspaceId || undefined);
 
       // 2. Create Default Document
-      const docSalt = window.crypto.getRandomValues(new Uint8Array(16));
-      const info = new Uint8Array(0); // Empty info
+      const docSalt = window.crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>;
+      const info = new Uint8Array(0) as Uint8Array<ArrayBuffer>;
       const docKey = await Crypto.deriveDocumentKey(masterKey, docSalt, info);
 
       const defaultContent = "Hello World"; // Default template
@@ -83,11 +83,11 @@ export const useDataLayer = () => {
       if (!doc) return null;
 
       // Decrypt
-      const salt = Crypto.fromBase64(doc.salt);
-      const iv = Crypto.fromBase64(doc.iv);
-      const encryptedContent = Crypto.fromBase64(doc.content_encrypted);
+      const salt = Crypto.fromBase64(doc.salt) as Uint8Array<ArrayBuffer>;
+      const iv = Crypto.fromBase64(doc.iv) as Uint8Array<ArrayBuffer>;
+      const encryptedContent = Crypto.fromBase64(doc.content_encrypted) as Uint8Array<ArrayBuffer>;
 
-      const docKey = await Crypto.deriveDocumentKey(masterKey, salt, new Uint8Array(0));
+      const docKey = await Crypto.deriveDocumentKey(masterKey, salt, new Uint8Array(0) as Uint8Array<ArrayBuffer>);
       const decryptedContent = await Crypto.decrypt(docKey, iv, encryptedContent);
 
       setLoading(false);
@@ -115,10 +115,10 @@ export const useDataLayer = () => {
       const docData = await dataStore.getDocumentByProject(projectId);
       if (!docData) throw new Error('Document not found');
 
-      const salt = Crypto.fromBase64(docData.salt);
+      const salt = Crypto.fromBase64(docData.salt) as Uint8Array<ArrayBuffer>;
 
       // 2. Derive key & Encrypt
-      const docKey = await Crypto.deriveDocumentKey(masterKey, salt, new Uint8Array(0));
+      const docKey = await Crypto.deriveDocumentKey(masterKey, salt, new Uint8Array(0) as Uint8Array<ArrayBuffer>);
       const { iv, ciphertext } = await Crypto.encrypt(docKey, content);
 
       // 3. Update

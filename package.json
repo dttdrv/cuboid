@@ -4,9 +4,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node --env-file=.env scripts/dev.cjs",
+    "dev:frontend": "vite",
     "build": "vite build",
-    "test": "vitest"
+    "test": "vitest",
+    "build:backend": "tsc -p backend/tsconfig.json",
+    "start:backend": "node --env-file=.env backend/dist/server.js",
+    "dev:backend": "npm run build:backend && npm run start:backend",
+    "configure:nvidia": "node --env-file=.env backend/scripts/configure_nvidia.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -27,11 +32,15 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^24.3.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@types/webrtc": "^0.0.47",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.23",
+    "jsdom": "^28.0.0",
     "playwright": "^1.58.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",

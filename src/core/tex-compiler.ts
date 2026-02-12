@@ -20,7 +20,7 @@ const loadFormatFile = async (): Promise<Uint8Array | null> => {
 };
 
 class PdfTeXEngineAdapter implements CompileEngineAdapter {
-  constructor(private readonly engine: PdfTeXEngine = new PdfTeXEngine()) {}
+  constructor(private readonly engine: PdfTeXEngine = new PdfTeXEngine()) { }
 
   isReady(): boolean {
     return this.engine.isReady();
@@ -58,7 +58,7 @@ export class TeXCompiler {
     if (result.success && result.pdfBytes) {
       return {
         success: true,
-        pdf: new Blob([result.pdfBytes], { type: 'application/pdf' }),
+        pdf: new Blob([result.pdfBytes as BlobPart], { type: 'application/pdf' }),
         log: result.log,
       };
     }

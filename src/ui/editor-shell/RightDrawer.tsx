@@ -1,7 +1,4 @@
-import React from 'react';
-
-const RightDrawer: React.FC = () => {
-  return null;
-};
-
-export default RightDrawer;
+// RightDrawer has been removed in the three-pane workspace redesign.
+// Compile logs moved to PDF preview three-dots menu.
+// This file is kept empty to avoid broken imports during transition.
+export { };

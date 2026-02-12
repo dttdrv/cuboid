@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       saltBase64 = toBase64(saltBytes);
       await authService.setEncryptionSalt(authUser.id, saltBase64);
     }
-    const saltBytes = fromBase64(saltBase64);
+    const saltBytes = fromBase64(saltBase64) as Uint8Array<ArrayBuffer>;
     return deriveMasterKey(password, saltBytes);
   };
 

@@ -1,30 +1,60 @@
 @import "tailwindcss";
 
 @theme {
-  --color-charcoal-950: #111317;
-  --color-charcoal-900: #171a20;
-  --color-charcoal-850: #1d2129;
-  --color-charcoal-800: #232935;
-  --color-charcoal-700: #2f3644;
-  --color-page-bg: #111317;
-  --color-panel-bg: #171a20;
-  --color-panel-raised: #1d2129;
-  --color-surface-rail: #151920;
-  --color-surface-editor: #11151c;
-  --color-surface-drawer: #1b2028;
-  --color-surface-elevated: #1f242d;
-  --color-surface-muted: #202632;
-  --color-border-subtle: #2c3441;
-  --color-text-primary: #eef2f7;
-  --color-text-secondary: #bdc6d3;
-  --color-text-muted: #8d97a6;
-  --color-accent: #2f6fe4;
-  --color-accent-strong: #255bc0;
-  --color-danger: #d65b5b;
-  --color-success: #41a96f;
-  --color-warning: #cf9e3a;
-  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', Menlo, monospace;
+  /* ── Warm Palette (Mistral-inspired) ── */
+  --color-warm-950: #141414;
+  --color-warm-900: #1a1a1a;
+  --color-warm-850: #1f1f1f;
+  --color-warm-800: #262626;
+  --color-warm-700: #333330;
+  --color-warm-600: #444440;
+
+  /* ── Surfaces ── */
+  --color-page-bg: #141414;
+  --color-panel-bg: #1a1a1a;
+  --color-panel-raised: #1f1f1f;
+  --color-surface-rail: #181818;
+  --color-surface-editor: #161616;
+  --color-surface-drawer: #1c1c1c;
+  --color-surface-elevated: #242420;
+  --color-surface-muted: #222220;
+  --color-surface-status-bar: #161614;
+  --color-surface-preview: #121210;
+  --color-surface-composer: #1a1a18;
+
+  /* ── Borders ── */
+  --color-border-subtle: #2e2e2a;
+  --color-border-active: #444440;
+
+  /* ── Text ── */
+  --color-text-primary: #FAFAF5;
+  --color-text-secondary: #C8C5BD;
+  --color-text-muted: #8A8780;
+
+  /* ── Accent & Semantics ── */
+  --color-accent: #FA520F;
+  --color-accent-strong: #E14500;
+  --color-danger: #E05555;
+  --color-success: #4CAF6E;
+  --color-warning: #E5A530;
+
+  /* ── Status Chips ── */
+  --color-status-idle: #8A8780;
+  --color-status-compiling: #FA520F;
+  --color-status-success: #4CAF6E;
+  --color-status-error: #E05555;
+  --color-status-queued: #E5A530;
+
+  /* ── Radius (Mistral-rounded) ── */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ── Typography ── */
+  --font-sans: 'Inter', 'Rubik', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
 }
 
 @layer base {
@@ -39,29 +69,33 @@
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #0f1217;
+    background: var(--color-warm-950);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #2a313d;
+    background: var(--color-warm-700);
+    border-radius: var(--radius-sm);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #374150;
+    background: var(--color-border-active);
   }
 }
 
+/* ── Panels ── */
 .panel {
   @apply border border-border-subtle bg-panel-bg;
+  border-radius: var(--radius-md);
 }
 
 .surface-card {
   @apply w-full max-w-[440px] border border-border-subtle bg-panel-bg px-6 py-7 sm:px-8 sm:py-8;
+  border-radius: var(--radius-lg);
 }
 
 .surface-rail {
@@ -82,81 +116,151 @@
 
 .surface-panel {
   @apply border border-border-subtle bg-panel-bg;
+  border-radius: var(--radius-md);
 }
 
 .surface-muted {
   @apply border border-border-subtle bg-surface-muted;
+  border-radius: var(--radius-sm);
 }
 
 .surface-contrast {
   @apply border border-border-subtle bg-page-bg;
+  border-radius: var(--radius-md);
 }
 
+/* ── Form Controls ── */
 .input-field {
-  @apply h-10 w-full border border-border-subtle bg-panel-raised px-3 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent;
+  @apply h-10 w-full border border-border-subtle bg-panel-raised px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
+  border-radius: var(--radius-md);
 }
 
 .select-field {
-  @apply h-10 w-full border border-border-subtle bg-panel-raised px-3 text-sm text-text-primary outline-none focus:border-accent;
+  @apply h-10 w-full border border-border-subtle bg-panel-raised px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent;
+  border-radius: var(--radius-md);
 }
 
 .textarea-field {
-  @apply w-full resize-none border border-border-subtle bg-panel-raised p-3 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent;
+  @apply w-full resize-none border border-border-subtle bg-panel-raised p-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent;
+  border-radius: var(--radius-md);
 }
 
 .input-error-slot {
   @apply mt-1 block min-h-5 text-xs text-danger;
 }
 
+/* ── Buttons ── */
 .btn-primary {
-  @apply inline-flex h-10 items-center justify-center gap-2 border border-accent bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-50;
+  @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2 border border-accent bg-accent px-4 text-sm font-medium text-white transition-all hover:bg-accent-strong hover:border-accent-strong active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  border-radius: var(--radius-md);
 }
 
 .btn-secondary {
-  @apply inline-flex h-10 items-center justify-center gap-2 border border-border-subtle bg-panel-raised px-4 text-sm font-medium text-text-primary transition-colors hover:bg-surface-muted disabled:opacity-50;
+  @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2 border border-border-subtle bg-panel-raised px-4 text-sm font-medium text-text-primary transition-all hover:bg-surface-muted hover:border-border-active active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  border-radius: var(--radius-md);
 }
 
 .btn-ghost {
-  @apply inline-flex h-10 items-center justify-center border border-transparent px-3 text-sm text-text-secondary transition-colors hover:border-border-subtle hover:bg-surface-muted hover:text-text-primary disabled:opacity-50;
+  @apply inline-flex h-10 cursor-pointer items-center justify-center border border-transparent px-3 text-sm text-text-secondary transition-all hover:border-border-subtle hover:bg-surface-muted hover:text-text-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  border-radius: var(--radius-md);
 }
 
 .btn-danger {
-  @apply inline-flex h-10 items-center justify-center gap-2 border border-danger bg-danger/15 px-4 text-sm font-medium text-danger transition-colors hover:bg-danger/25 disabled:opacity-50;
+  @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2 border border-danger bg-danger/15 px-4 text-sm font-medium text-danger transition-all hover:bg-danger/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  border-radius: var(--radius-md);
 }
 
 .btn-icon {
-  @apply inline-flex h-9 w-9 items-center justify-center border border-border-subtle bg-panel-raised text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary disabled:opacity-50;
+  @apply inline-flex h-9 w-9 cursor-pointer items-center justify-center border border-border-subtle bg-panel-raised text-text-secondary transition-all hover:bg-surface-muted hover:text-text-primary active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-50;
+  border-radius: var(--radius-md);
+}
+
+/* ── Toolbar Button (editor shell) ── */
+.toolbar-btn {
+  @apply inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 border border-transparent bg-transparent px-2.5 text-xs text-text-secondary transition-all hover:bg-surface-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40;
+  border-radius: var(--radius-sm);
+}
+
+.toolbar-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.toolbar-btn-active {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+}
+
+/* ── Status Chips ── */
+.status-chip {
+  @apply inline-flex h-6 items-center gap-1.5 border px-2.5 font-mono text-[11px] font-medium tracking-wide uppercase;
+  border-radius: var(--radius-pill);
+}
+
+.status-chip-idle {
+  @apply border-border-subtle text-text-muted;
+}
+
+.status-chip-compiling {
+  border-color: color-mix(in srgb, var(--color-status-compiling) 40%, transparent);
+  background: color-mix(in srgb, var(--color-status-compiling) 12%, transparent);
+  color: var(--color-status-compiling);
+}
+
+.status-chip-success {
+  border-color: color-mix(in srgb, var(--color-status-success) 40%, transparent);
+  background: color-mix(in srgb, var(--color-status-success) 12%, transparent);
+  color: var(--color-status-success);
+}
+
+.status-chip-error {
+  border-color: color-mix(in srgb, var(--color-status-error) 40%, transparent);
+  background: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+  color: var(--color-status-error);
+}
+
+.status-chip-queued {
+  border-color: color-mix(in srgb, var(--color-status-queued) 40%, transparent);
+  background: color-mix(in srgb, var(--color-status-queued) 12%, transparent);
+  color: var(--color-status-queued);
+}
+
+/* ── Tabs ── */
+.tab-button {
+  @apply border-b-2 border-transparent px-3 pb-2 text-sm text-text-secondary transition-colors hover:text-text-primary;
+}
+
+.tab-button-active {
+  @apply border-b-2 border-accent text-text-primary;
+}
+
+/* ── Badges ── */
+.badge-neutral {
+  @apply inline-flex items-center border border-border-subtle bg-panel-raised px-2 py-0.5 text-xs text-text-secondary;
+  border-radius: var(--radius-pill);
+}
+
+/* ── Interactive States ── */
+.subtle-hover {
+  background: transparent;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.subtle-hover:hover {
+  background: var(--color-surface-muted);
+}
+
+.state-active {
+  background: var(--color-warm-800);
 }
 
 .selection-row {
   @apply bg-surface-muted;
+  border-radius: var(--radius-sm);
 }
 
-.tab-button {
-  @apply border-b border-transparent px-1 pb-1 text-sm text-text-secondary transition-colors hover:text-text-primary;
-}
-
-.tab-button-active {
-  @apply border-b border-text-primary text-text-primary;
-}
-
-.badge-neutral {
-  @apply inline-flex items-center border border-border-subtle bg-panel-raised px-2 py-1 text-xs text-text-secondary;
-}
-
-.subtle-hover {
-  background: transparent;
-  transition: background-color 150ms ease;
-}
-
-.subtle-hover:hover {
-  background: #232a35;
-}
-
-.state-active {
-  background: #2a3240;
-}
-
+/* ── Notices ── */
 .inline-notice-error {
   @apply text-sm text-danger;
 }
@@ -169,43 +273,156 @@
   @apply text-sm text-warning;
 }
 
+/* ── Editor Decorations ── */
 .line-decoration-error {
-  box-shadow: inset 2px 0 0 var(--color-danger);
+  box-shadow: inset 3px 0 0 var(--color-danger);
 }
 
 .line-decoration-warning {
-  box-shadow: inset 2px 0 0 var(--color-warning);
+  box-shadow: inset 3px 0 0 var(--color-warning);
 }
 
 .comment-range-highlight {
-  background: rgba(47, 111, 228, 0.15);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 .gutter-error {
-  background: #d65b5b;
+  background: var(--color-danger);
 }
 
 .gutter-warning {
-  background: #cf9e3a;
+  background: var(--color-warning);
 }
 
 .gutter-comment {
-  background: #2f6fe4;
+  background: var(--color-accent);
 }
 
 .ghost-diff-proposed {
-  background: rgba(65, 169, 111, 0.14);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
 }
 
 .ghost-diff-accepted {
-  background: rgba(65, 169, 111, 0.2);
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
 }
 
 .ghost-diff-rejected {
-  background: rgba(214, 91, 91, 0.18);
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
 }
 
+/* ── Scrollbar (Firefox) ── */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #2a313d #10141a;
+  scrollbar-color: var(--color-warm-700) var(--color-warm-950);
+}
+
+/* ── Dropdown Menus ── */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dropdown-menu {
+  @apply border border-border-subtle bg-panel-raised p-1 shadow-xl shadow-black/30;
+  border-radius: var(--radius-md);
+  animation: dropdown-in 120ms ease-out;
+}
+
+.dropdown-item {
+  @apply block w-full cursor-pointer px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Modal Overlay ── */
+.modal-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center px-4;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  @apply w-full max-w-md border border-border-subtle bg-warm-900 p-6 shadow-2xl shadow-black/40;
+  border-radius: var(--radius-lg);
+}
+
+/* ── Focus Ring ── */
+.focus-ring:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible,
+.btn-danger:focus-visible,
+.btn-icon:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── Pane Restore Handle ── */
+.pane-restore-handle {
+  width: 4px;
+  transition: width 150ms ease, background-color 150ms ease;
+  background: var(--color-surface-rail);
+  border-right: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+}
+
+.pane-restore-handle:hover {
+  width: 12px;
+  background: var(--color-surface-muted);
+}
+
+.pane-restore-handle:hover .pane-restore-icon {
+  opacity: 1;
+}
+
+.pane-restore-icon {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+/* ── Compact Compile Status ── */
+.compile-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.compile-dot-idle {
+  background: var(--color-status-idle);
+}
+
+.compile-dot-compiling {
+  background: var(--color-status-compiling);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+.compile-dot-success {
+  background: var(--color-status-success);
+}
+
+.compile-dot-error {
+  background: var(--color-status-error);
+}
+
+.compile-dot-queued {
+  background: var(--color-status-queued);
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }

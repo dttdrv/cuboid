@@ -37,14 +37,14 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-charcoal-950 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-page-bg px-4">
       <CenterCard>
         <div className="mb-7">
           <div className="mb-1 flex items-center gap-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-text-primary">Prism</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-text-primary">Cuboid</h1>
             <span className="badge-neutral">Preview</span>
           </div>
-          <p className="text-sm text-text-secondary">AI-assisted LaTeX editor</p>
+          <p className="text-sm text-text-secondary">LaTeX editor — local-first, AI-optional</p>
         </div>
 
         <div className="space-y-3">
@@ -84,7 +84,7 @@ const LoginScreen: React.FC = () => {
           </button>
         </div>
 
-        <div className="mt-3 border-t border-white/[0.08] pt-3 text-center">
+        <div className="mt-3 border-t border-border-subtle pt-3 text-center">
           <button
             type="button"
             className="btn-secondary h-9 w-full"

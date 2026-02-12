@@ -1,26 +1,24 @@
-status: p0_recovery_implemented_in_validation
+status: phase5_ui_refinements_complete
 goals:
-  - current: Validate and stabilize the new agent-led editor shell after hard-reset implementation
-  - pending: Close gates A-F with evidence-backed sign-off and strict type-baseline recovery
+  - current: Production polish on editor shell — interaction quality, accessibility, visual consistency
+  - completed: Phase 5 UI refinements (all 7 components polished)
+  - pending: Phase 2 multi-file support, Phase 3 chat mode
 constraints:
   - local-first
   - no-cloud-runtime-in-this-phase
   - aesthetic: Hard-square industrial minimal with IBM Plex Sans + JetBrains Mono
   - preserve auth/workspace/project routing semantics
 decisions:
-  - ui_system: Agent-led shell architecture with composer-centered workflow and single primary action hierarchy
-  - backend_boundaries: DataStore/AuthService/CryptoVault/CompileService seams remain active
-  - compile_mode: Hybrid auto+manual compile with queue/debounce state machine
-  - security_mode: Hardened local mode with CSP baseline and local runtime assets
-  - parity_mode: Prism direction targeted by interaction model and control posture (not pixel cloning)
+  - ui_system: Agent-led shell architecture with composer-centered workflow
+  - dropdown_dismiss: Click-outside via useClickOutside hook (replaces onMouseLeave)
+  - input_mode: Growing textarea with Shift+Enter for newlines
+  - pdf_dark_mode: CSS invert filter approach (no re-render)
+  - compile_indicator: Compact dot + text in top-right of editor area
 risks:
-  - preview_port_collision: Port 4173 remains collision-prone in this environment; active serve currently on 4174
   - strict_type_baseline: pre-existing tsc strict errors remain in legacy core/worker paths
   - modal_consistency_gap: settings/modal/menu consistency is still partially migrated
-  - production_auth: local auth/session implementation remains demo-grade for non-local deployments
-  - benchmark_url_stability: Prism parity references vary across openai.com paths; parity source must be re-validated periodically
+  - production_auth: local auth/session implementation remains demo-grade
 next_steps:
-  - Gather user validation feedback on the new shell and fix highest-friction flows first
-  - Capture fresh post-reset screenshots and update gate evidence docs
-  - Finish modal/menu/settings consistency sweep (P1.2)
-  - Recover strict type baseline by addressing legacy tsc failures
+  - Phase 2: Multi-file support (fileList, contentMap, tab management)
+  - Phase 3: Chat mode (chatStore CRUD, session wiring, message persistence)
+  - Gather user feedback on Phase 5 polish

@@ -1,25 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useDataLayer } from '../core/hooks/useDataLayer';
 import { Project } from '../core/data/types';
-import ProjectCreationModal, { ProjectTemplate } from './modals/ProjectCreationModal';
+import ProjectCreationModal from './modals/ProjectCreationModal';
 import ImportProjectModal from './modals/ImportProjectModal';
 import { useAuth } from '../core/auth/AuthProvider';
 import { listStoredProjectHandles, openDirectory } from '../core/storage/fs';
-import { Plus } from 'lucide-react';
+import { FileText, Plus, Search } from 'lucide-react';
+import { backendCreateProject, backendListProjects } from '../core/backend/client';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { selectedWorkspaceId, setSelectedWorkspaceId } = useAuth();
-  const { listProjects, createProject, loading, error } = useDataLayer();
 
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'yours' | 'shared'>('yours');
   const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent');
   const [pathHint, setPathHint] = useState<string | null>(null);
 
@@ -31,26 +31,61 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      const data = await listProjects(workspaceId);
-      setProjects(data);
+      setLoading(true);
+      setError(null);
+      try {
+        const manifests = await backendListProjects();
+        const mapped: Project[] = manifests.map((p) => ({
+          id: p.id,
+          owner_id: 'local',
+          workspace_id: workspaceId || selectedWorkspaceId || undefined,
+          name: p.name,
+          created_at: p.createdAt,
+          updated_at: p.updatedAt,
+        }));
+        setProjects(mapped);
+      } catch (err: any) {
+        setError(err?.message || 'Failed to load projects from backend.');
+      } finally {
+        setLoading(false);
+      }
       const handles = listStoredProjectHandles();
       if (handles.length > 0) setPathHint(handles[0].pathHint);
     };
     void load();
-  }, [listProjects, workspaceId]);
+  }, [workspaceId, selectedWorkspaceId]);
 
-  const handleCreateProject = async (payload: {
-    name: string;
-    template: ProjectTemplate;
-    realtimeCompilation: boolean;
-  }) => {
-    const project = await createProject(payload.name);
-    if (!project) return;
-    setProjects((current) => [project, ...current]);
-    setIsCreationModalOpen(false);
-    const targetWorkspace = workspaceId || selectedWorkspaceId || project.workspace_id;
-    if (targetWorkspace) {
-      navigate(`/app/${targetWorkspace}/projects/${project.id}/editor`);
+  const handleCreateProject = async (payload: { name: string }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const created = await backendCreateProject(payload.name);
+      if (!created.id) {
+        throw new Error('Backend did not return a project id.');
+      }
+      const project: Project = {
+        id: created.id,
+        owner_id: 'local',
+        workspace_id: workspaceId || selectedWorkspaceId || undefined,
+        name: created.name,
+        created_at: created.createdAt,
+        updated_at: created.updatedAt,
+      };
+      setProjects((current) => [project, ...current]);
+      setIsCreationModalOpen(false);
+      const targetWorkspace = workspaceId || selectedWorkspaceId || project.workspace_id;
+      if (targetWorkspace) {
+        navigate(`/app/${targetWorkspace}/projects/${project.id}/editor`);
+      }
+    } catch (err: any) {
+      const raw = String(err?.message || '');
+      const message = raw.includes('Failed to fetch')
+        ? 'Backend is not running. Start it with npm run dev:backend.'
+        : raw || 'Failed to create project.';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,78 +101,45 @@ const Dashboard: React.FC = () => {
     });
   }, [projects, query, sortBy]);
 
-  const renderedProjects = activeFilter === 'shared' ? [] : sortedProjects;
-  const displayProjects = renderedProjects.length > 0
-    ? renderedProjects
-    : [{
-        id: '__placeholder__',
-        name: 'New Project',
-        created_at: new Date().toISOString(),
-        updated_at: new Date(Date.now() - (11 * 24 * 60 * 60 * 1000)).toISOString(),
-        owner_id: 'placeholder',
-      } as Project];
+  const formatAge = (iso: string) => {
+    const ms = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(ms / 60000);
+    if (mins < 60) return `${Math.max(1, mins)}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+  };
 
   return (
-    <div className="min-h-screen bg-page-bg p-3 text-text-primary">
-      <div className="mx-auto grid h-[calc(100vh-1.5rem)] max-w-[1500px] grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="panel flex min-h-0 flex-col">
-          <div className="border-b border-border-subtle p-3">
-            <p className="text-sm font-semibold text-text-primary">Projects</p>
+    <div className="min-h-screen bg-page-bg p-4 text-text-primary">
+      <div className="mx-auto max-w-5xl">
+        {/* ── Header ── */}
+        <header className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+            <p className="text-sm text-text-muted mt-1">
+              {projects.length} project{projects.length !== 1 ? 's' : ''} • local workspace
+            </p>
           </div>
-          <nav className="space-y-1 p-2">
-            <button
-              type="button"
-              onClick={() => setActiveFilter('all')}
-              className={`w-full px-2 py-1 text-left text-sm ${activeFilter === 'all' ? 'bg-surface-muted text-text-primary' : 'text-text-secondary'}`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveFilter('yours')}
-              className={`w-full px-2 py-1 text-left text-sm ${activeFilter === 'yours' ? 'bg-surface-muted text-text-primary' : 'text-text-secondary'}`}
-            >
-              Yours
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveFilter('shared')}
-              className={`w-full px-2 py-1 text-left text-sm ${activeFilter === 'shared' ? 'bg-surface-muted text-text-primary' : 'text-text-secondary'}`}
-            >
-              Shared
-            </button>
-          </nav>
-        </aside>
-
-        <main className="panel min-h-0 overflow-hidden">
-          <header className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-3">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search projects"
-              className="input-field h-9 min-w-[220px] max-w-[420px] flex-1 px-2 text-sm"
-            />
-            <select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as 'recent' | 'name')}
-              className="select-field h-9 w-[130px] px-2 text-sm"
-            >
-              <option value="recent">Recent</option>
-              <option value="name">Name</option>
-            </select>
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <button type="button" onClick={() => setIsImportMenuOpen((open) => !open)} className="btn-secondary h-9 px-3 text-sm">
+              <button
+                type="button"
+                onClick={() => setIsImportMenuOpen((open) => !open)}
+                className="btn-secondary h-9 px-4 text-sm"
+              >
                 Import
               </button>
               {isImportMenuOpen && (
-                <div className="absolute right-0 top-10 z-20 w-[230px] border border-border-subtle bg-panel-raised p-1">
+                <div className="absolute right-0 top-10 z-20 dropdown-menu w-48">
                   <button
                     type="button"
                     onClick={() => {
                       setIsImportMenuOpen(false);
                       setIsImportModalOpen(true);
                     }}
-                    className="block w-full px-2 py-2 text-left text-sm text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                    className="dropdown-item"
                   >
                     Archive (.zip, .tar.gz)
                   </button>
@@ -148,50 +150,106 @@ const Dashboard: React.FC = () => {
                       const handle = await openDirectory();
                       if (handle) setPathHint(handle.pathHint);
                     }}
-                    className="block w-full px-2 py-2 text-left text-sm text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                    className="dropdown-item"
                   >
                     Folder
                   </button>
                 </div>
               )}
             </div>
-            <button type="button" onClick={() => setIsCreationModalOpen(true)} className="btn-primary h-9 px-3 text-sm">
+            <button
+              type="button"
+              onClick={() => setIsCreationModalOpen(true)}
+              className="btn-primary h-9 px-4 text-sm"
+            >
               <Plus size={14} />
-              New
+              New Project
             </button>
-          </header>
-
-          <div className="h-[calc(100%-52px)] overflow-y-auto p-3">
-            {error && <p className="mb-2 text-sm text-danger">{error}</p>}
-            {pathHint && <p className="mb-2 text-xs text-text-muted">{pathHint}</p>}
-            {loading && renderedProjects.length === 0 && <div className="text-sm text-text-secondary">Loading projects...</div>}
-
-            <div className="space-y-1">
-              {displayProjects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => {
-                    if (project.id === '__placeholder__') {
-                      setIsCreationModalOpen(true);
-                      return;
-                    }
-                    const targetWorkspace = workspaceId || selectedWorkspaceId || project.workspace_id;
-                    if (targetWorkspace) {
-                      navigate(`/app/${targetWorkspace}/projects/${project.id}/editor`);
-                    }
-                  }}
-                  className="flex w-full items-center justify-between border border-border-subtle bg-panel-raised px-3 py-2 text-left hover:bg-surface-muted"
-                >
-                  <span className="truncate text-sm text-text-primary">{project.name}</span>
-                  <span className="text-xs text-text-muted">
-                    {Math.max(1, Math.floor((Date.now() - new Date(project.updated_at || project.created_at).getTime()) / (1000 * 60 * 60 * 24)))}d
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
-        </main>
+        </header>
+
+        {/* ── Search & Sort bar ── */}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search projects…"
+              className="input-field h-9 pl-9 text-sm"
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as 'recent' | 'name')}
+            className="select-field h-9 w-28 text-sm"
+          >
+            <option value="recent">Recent</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+
+        {/* ── Error ── */}
+        {error && (
+          <div className="mb-4 border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+            style={{ borderRadius: 'var(--radius-md)' }}>
+            {error}
+          </div>
+        )}
+        {pathHint && <p className="mb-3 font-mono text-[11px] text-text-muted">{pathHint}</p>}
+
+        {/* ── Loading ── */}
+        {loading && sortedProjects.length === 0 && (
+          <div className="py-16 text-center">
+            <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-text-muted/30 border-t-accent" />
+            <p className="mt-3 text-sm text-text-muted">Loading projects…</p>
+          </div>
+        )}
+
+        {/* ── Empty State ── */}
+        {!loading && sortedProjects.length === 0 && !error && (
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-warm-800">
+              <FileText size={24} className="text-text-muted" />
+            </div>
+            <p className="text-text-secondary">No projects yet</p>
+            <button
+              type="button"
+              onClick={() => setIsCreationModalOpen(true)}
+              className="btn-primary h-9 px-5 text-sm"
+            >
+              <Plus size={14} />
+              Create your first project
+            </button>
+          </div>
+        )}
+
+        {/* ── Project Grid ── */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedProjects.map((project) => (
+            <button
+              key={project.id}
+              type="button"
+              onClick={() => {
+                const targetWorkspace = workspaceId || selectedWorkspaceId || project.workspace_id;
+                if (targetWorkspace) {
+                  navigate(`/app/${targetWorkspace}/projects/${project.id}/editor`);
+                }
+              }}
+              className="group flex flex-col border border-border-subtle bg-panel-bg p-4 text-left transition-all hover:border-border-active hover:bg-panel-raised hover:shadow-lg hover:shadow-black/20"
+              style={{ borderRadius: 'var(--radius-lg)' }}
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center bg-warm-800 text-text-muted group-hover:text-accent transition-colors"
+                style={{ borderRadius: 'var(--radius-md)' }}>
+                <FileText size={18} />
+              </div>
+              <span className="truncate text-sm font-medium text-text-primary">{project.name}</span>
+              <span className="mt-1 font-mono text-[11px] text-text-muted">
+                {formatAge(project.updated_at || project.created_at)} ago
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <ProjectCreationModal

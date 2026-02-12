@@ -3,14 +3,14 @@ const subtle = globalThis.crypto.subtle;
 /**
  * Encodes a string to Uint8Array.
  */
-function encode(text: string): Uint8Array {
+function encode(text: string): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(text);
 }
 
 /**
  * Decodes a Uint8Array to string.
  */
-function decode(bytes: Uint8Array): string {
+function decode(bytes: Uint8Array<ArrayBuffer>): string {
   return new TextDecoder().decode(bytes);
 }
 
@@ -20,7 +20,7 @@ function decode(bytes: Uint8Array): string {
  */
 export async function deriveMasterKey(
   password: string,
-  salt: Uint8Array
+  salt: Uint8Array<ArrayBuffer>
 ): Promise<CryptoKey> {
   const keyMaterial = await subtle.importKey(
     "raw",
@@ -55,8 +55,8 @@ export async function deriveMasterKey(
  */
 export async function deriveDocumentKey(
   masterKey: CryptoKey,
-  salt: Uint8Array,
-  info: Uint8Array
+  salt: Uint8Array<ArrayBuffer>,
+  info: Uint8Array<ArrayBuffer>
 ): Promise<CryptoKey> {
   return subtle.deriveKey(
     {
@@ -78,8 +78,8 @@ export async function deriveDocumentKey(
 export async function encrypt(
   key: CryptoKey,
   plaintext: string
-): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+): Promise<{ iv: Uint8Array<ArrayBuffer>; ciphertext: Uint8Array<ArrayBuffer> }> {
+  const iv = globalThis.crypto.getRandomValues(new Uint8Array(12)) as Uint8Array<ArrayBuffer>;
   const encryptedContent = await subtle.encrypt(
     {
       name: "AES-GCM",
@@ -91,7 +91,7 @@ export async function encrypt(
 
   return {
     iv,
-    ciphertext: new Uint8Array(encryptedContent),
+    ciphertext: new Uint8Array(encryptedContent) as Uint8Array<ArrayBuffer>,
   };
 }
 
@@ -100,8 +100,8 @@ export async function encrypt(
  */
 export async function decrypt(
   key: CryptoKey,
-  iv: Uint8Array,
-  ciphertext: Uint8Array
+  iv: Uint8Array<ArrayBuffer>,
+  ciphertext: Uint8Array<ArrayBuffer>
 ): Promise<string> {
   const decryptedContent = await subtle.decrypt(
     {
@@ -112,7 +112,7 @@ export async function decrypt(
     ciphertext
   );
 
-  return decode(new Uint8Array(decryptedContent));
+  return decode(new Uint8Array(decryptedContent) as Uint8Array<ArrayBuffer>);
 }
 
 export function toBase64(bytes: Uint8Array): string {

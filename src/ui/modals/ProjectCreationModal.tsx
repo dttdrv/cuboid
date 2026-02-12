@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
-
-export type ProjectTemplate = 'Blank' | 'Article' | 'Beamer' | 'IEEE/ACM';
+import React, { useEffect, useState } from 'react';
 
 interface ProjectCreationModalProps {
     isOpen: boolean;
-    onCreateProject: (payload: {
-        name: string;
-        template: ProjectTemplate;
-        realtimeCompilation: boolean;
-    }) => void;
+    onCreateProject: (payload: { name: string }) => Promise<void>;
     onCancel: () => void;
 }
 
@@ -18,33 +12,62 @@ const ProjectCreationModal: React.FC<ProjectCreationModalProps> = ({
     onCancel,
 }) => {
     const [projectName, setProjectName] = useState('');
-    const [template, setTemplate] = useState<ProjectTemplate>('Blank');
-    const [realtimeCompilation, setRealtimeCompilation] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setProjectName('');
+            setSubmitting(false);
+            setError(null);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && !submitting) {
+                onCancel();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, submitting, onCancel]);
 
     if (!isOpen) return null;
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const name = projectName.trim();
         if (!name) return;
 
-        onCreateProject({
-            name,
-            template,
-            realtimeCompilation,
-        });
+        setSubmitting(true);
+        setError(null);
+        try {
+            await onCreateProject({ name });
+        } catch (err: any) {
+            setError(err?.message || 'Failed to create project.');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal-950/80 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-md border border-white/[0.08] bg-charcoal-900 p-6 shadow-2xl shadow-black/40">
+        <div
+            className="modal-overlay"
+            onClick={(event) => {
+                if (event.target === event.currentTarget && !submitting) onCancel();
+            }}
+        >
+            <div className="modal-card">
                 <h2 className="text-lg font-semibold text-text-primary">New Project</h2>
+                <p className="mt-1 text-sm text-text-muted">Give your project a name to get started.</p>
 
-                <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+                <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
                     <div>
                         <label
                             htmlFor="project-name"
-                            className="mb-2 block text-sm font-medium text-text-secondary"
+                            className="mb-1.5 block text-sm font-medium text-text-secondary"
                         >
                             Project Name
                         </label>
@@ -59,58 +82,28 @@ const ProjectCreationModal: React.FC<ProjectCreationModalProps> = ({
                         />
                     </div>
 
-                    <div>
-                        <label
-                            htmlFor="project-template"
-                            className="mb-2 block text-sm font-medium text-text-secondary"
-                        >
-                            Template
-                        </label>
-                        <select
-                            id="project-template"
-                            value={template}
-                            onChange={(event) => setTemplate(event.target.value as ProjectTemplate)}
-                            className="select-field"
-                        >
-                            <option value="Blank">Blank</option>
-                            <option value="Article">Article</option>
-                            <option value="Beamer">Beamer</option>
-                            <option value="IEEE/ACM">IEEE/ACM</option>
-                        </select>
-                    </div>
+                    {error && (
+                        <div className="border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+                            style={{ borderRadius: 'var(--radius-sm)' }}>
+                            {error}
+                        </div>
+                    )}
 
-                    <div className="flex items-center justify-between border border-white/[0.08] bg-charcoal-850 px-4 py-3">
-                        <span className="text-sm text-text-secondary">Enable realtime compilation</span>
-                        <button
-                            type="button"
-                            aria-pressed={realtimeCompilation}
-                            onClick={() => setRealtimeCompilation((enabled) => !enabled)}
-                            className={`inline-flex h-6 w-11 items-center border border-white/[0.2] transition-colors ${
-                                realtimeCompilation ? 'bg-accent' : 'bg-charcoal-700'
-                            }`}
-                        >
-                            <span
-                                className={`h-4 w-4 bg-white transition-transform ${
-                                    realtimeCompilation ? 'translate-x-6' : 'translate-x-0.5'
-                                }`}
-                            />
-                        </button>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-4 pt-2">
+                    <div className="flex items-center justify-end gap-3 pt-1">
                         <button
                             type="button"
                             onClick={onCancel}
-                            className="btn-ghost h-9"
+                            className="btn-ghost h-9 text-sm"
+                            disabled={submitting}
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="btn-primary h-9 px-4 disabled:opacity-50"
-                            disabled={!projectName.trim()}
+                            className="btn-primary h-9 px-5 text-sm disabled:opacity-50"
+                            disabled={!projectName.trim() || submitting}
                         >
-                            Create Project
+                            {submitting ? 'Creating…' : 'Create'}
                         </button>
                     </div>
                 </form>

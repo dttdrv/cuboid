@@ -1,13 +1,13 @@
 # Cuboid Roadmap + Changelog
 
 Last updated: 2026-02-10
-Purpose: meticulous execution history plus forward roadmap while recovery implementation is under active user validation.
+Purpose: meticulous execution history plus forward roadmap while backend-first competitor implementation is in active validation.
 
 ## 1) Program Snapshot
-- Product direction: Prism-style AI-native writing flow with explicit user control.
+- Product direction: backend-first local-first Prism/Crixet-class writing environment with explicit user control.
 - Runtime mode: local-first.
-- Program phase: `p0_recovery_implemented_in_validation`.
-- Current gate posture: A-F implemented at least once, now in targeted re-validation after hard reset.
+- Program phase: `p1_backend_foundation_implemented_in_validation`.
+- Current gate posture: UI recovery complete enough for baseline, now shifted to backend ownership and reliability closure.
 - External benchmark status:
   - `https://openai.com/prism` reachable (checked 2026-02-10)
   - `https://openai.com/index/prism` still unstable (`404` observed 2026-02-10)
@@ -15,6 +15,11 @@ Purpose: meticulous execution history plus forward roadmap while recovery implem
 ## 2) Health Snapshot
 ### Build
 - Command: `set PATH=C:\Progra~1\nodejs;%PATH% && C:\Progra~1\nodejs\npm.cmd run build`
+- Status: pass
+- Verified: 2026-02-10
+
+### Backend build
+- Command: `set PATH=C:\Progra~1\nodejs;%PATH% && C:\Progra~1\nodejs\npm.cmd run build:backend`
 - Status: pass
 - Verified: 2026-02-10
 
@@ -30,50 +35,45 @@ Purpose: meticulous execution history plus forward roadmap while recovery implem
 - Impact: does not block Vite build/test but blocks strict TS hygiene closure.
 
 ### Local serving status
-- Port `4173`: occupied by existing process in this environment.
-- Active validated server: `http://127.0.0.1:4174`
-- Probe result: `HTTP 200` (2026-02-10)
+- Frontend validated server: `http://127.0.0.1:4174` (`HTTP 200`)
+- Backend validated server: `http://127.0.0.1:4317/v1/health` (`HTTP 200`)
 
 ## 3) Completed Work (Detailed)
-### P0 hard reset implementation
-- Replaced monolithic editor layout with shell-based composition:
-  - `src/ui/editor-shell/EditorShell.tsx`
-  - `src/ui/editor-shell/LeftRail.tsx`
+### Backend-first foundation
+- Added local control plane under `backend/src` with `/v1/*` API surface:
+  - health, projects/files, compile jobs/events, AI endpoints, settings and AI toggle
+- Added compile queue orchestration service:
+  - `backend/src/services/compileQueue.ts`
+- Added local filesystem storage model under `~/.cuboid`:
+  - projects, compile jobs/events, build artifacts, settings
+- Added encrypted local secret store:
+  - `backend/src/services/secrets.ts`
+- Added AI policy gate with hard AI disable behavior:
+  - `backend/src/services/aiRouter.ts`
+
+### Rust compile worker path
+- Added Rust worker crate:
+  - `backend/rust/compile_worker/Cargo.toml`
+  - `backend/rust/compile_worker/src/main.rs`
+- Worker invocation model wired from TypeScript backend.
+- Compile command path: `latexmk` with timeout and JSON result envelope.
+
+### Frontend integration with backend
+- Added backend API client:
+  - `src/core/backend/client.ts`
+- Rewired compile flow in editor to backend compile jobs:
+  - `src/ui/EditorPage.tsx`
+- Added backend-driven AI ON/OFF toggle in composer:
   - `src/ui/editor-shell/ComposerPane.tsx`
-  - `src/ui/editor-shell/ArtifactPane.tsx`
-  - `src/ui/editor-shell/RunStatusBar.tsx`
-  - `src/ui/editor-shell/RightDrawer.tsx`
   - `src/ui/editor-shell/contracts.ts`
-- Rebuilt `src/ui/EditorPage.tsx` as orchestration container with persistent UI session state.
 
-### Compile and operation behavior
-- Added compile trigger/state/meta types in `src/core/compile/types.ts`.
-- Implemented hybrid compile flow (auto debounce + manual) with queue semantics.
-- Added first actionable compile error jump logic and activity logging integration.
-
-### Reliability and runtime fixes
-- Stabilized Monaco runtime loading with local loader path in `src/ui/editor/MonacoEditor.tsx`.
-- Added local Monaco assets under `public/monaco/vs`.
-- Removed ambiguous editor loading dead-state by adding explicit loading fallback.
-
-### Dashboard direction correction
-- Reworked `src/ui/Dashboard.tsx` to emphasize:
-  - `Continue with AI`
-  - `New agentic session`
-- Reduced header control clutter by compacting filter/sort controls.
-
-### Design system debt reduction
-- Removed legacy alias classes from `src/index.css`:
-  - `btn-pill-primary`, `btn-pill-secondary`, `btn-pill-tertiary`
-  - `input-pill`, `selection-pill`, `center-card`
-- Updated `src/ui/components/CenterCard.tsx` to `surface-card`.
-
-### New type surfaces
+### Research package initialized
 - Added:
-  - `src/core/editor/types.ts`
-  - `src/core/ai/agenticTypes.ts`
-- Extended:
-  - `src/core/data/types.ts` with `UiSessionState`
+  - `research/prism_crixet_feature_matrix.md`
+  - `research/stack_alternatives_matrix.md`
+  - `research/moat_and_differentiation.md`
+  - `research/funding_narrative_mistral.md`
+  - `research/source_log.md`
 
 ## 4) Critical Incident Log
 ### 2026-02-10: direction mismatch and clutter correction
@@ -103,21 +103,47 @@ Purpose: meticulous execution history plus forward roadmap while recovery implem
   1. keep 4173 collision note in docs,
   2. default to alternate explicit port when occupied.
 
-## 5) Roadmap (Next 3 Sprints)
-### Sprint 1: Validation and gate evidence closure
-1. Capture fresh screenshots for new shell in `showcase/after`.
-2. Close Gate B with user-validated workflow feedback.
-3. Close Gate A/C after final style and modal consistency checks.
+## 5) Roadmap (Next Phases)
+### Phase A: Backend ownership closure
+1. Route all project/file interactions through backend APIs.
+2. Remove remaining frontend-local compile assumptions.
+3. Add robust compile event polling/streaming in editor UX.
 
-### Sprint 2: Agentic UX polish
-1. Improve proposal explainability and action trace quality.
-2. Refine right-drawer interaction density and information hierarchy.
-3. Add richer activity timeline grouping and filters.
+### Phase B: Compile hardening and parity
+1. Harden Rust worker for multi-file/bibliography-heavy project cases.
+2. Implement queue bounds, cancellation semantics, retry policy.
+3. Add compile fixture suite and failure-classification tests.
 
-### Sprint 3: Technical debt and strictness closure
-1. Resolve pre-existing `tsc --noEmit` failures in core/worker paths.
-2. Finalize menu/modal/settings consistency pass.
-3. Re-run full validation matrix and mark eligible gates `PASSED`.
+### Phase C: AI router hardening (NVIDIA-first, provider-agnostic)
+1. Harden NVIDIA response normalization and error handling (`/v1/chat/completions`).
+2. Document model ID flexibility and keep it user-configurable.
+3. Expand AI policy + redaction test coverage (AI OFF blocks all outbound calls).
+4. Introduce explicit provider adapter interface so OpenRouter/direct providers can be added later without refactor.
+5. Add multimodal request support path for models that accept images (OpenAI-compatible content arrays).
+
+### Phase D: Prism-ahead parity closure (backend-first)
+1. SyncTeX pipeline for “go to PDF / go to LaTeX” navigation.
+2. Project context index (labels/refs graph, citations list, section graph).
+3. Compiler-log-aware diagnostics enrichment (AI optional).
+4. Import parity (zip/folder) and “move selection to subfile” refactor proposals.
+5. Comments persistence (local-only v1; cloud deferred).
+
+### Phase E: Research dossier completion
+1. Complete verified/inferred/unknown matrix by subsystem.
+2. Finalize alternatives pass/fail and technical selection evidence.
+3. Finalize partner-focused positioning and funding narrative pack.
+
+### Phase F: UI re-polish only after backend gates
+1. Keep simple 3-pane editor.
+2. Improve compile diagnostics affordances and AI toggle clarity.
+3. Delay non-core UI complexity until backend acceptance criteria pass.
+
+### Phase G: Cloud-ready option (post-local v1, Cloudflare/VPS-friendly)
+1. Containerize compile worker and enforce strict sandboxing and quotas.
+2. Split services (API, worker pool, artifact store).
+3. Add object storage integration for projects/artifacts (Cloudflare R2 or S3).
+4. Add DB when multi-user lands (Postgres/SQLite).
+5. Add auth + invites + permissions.
 
 ## 6) Immediate Priorities While User Tests
 1. Collect concrete UX friction notes from live testing.
@@ -126,6 +152,24 @@ Purpose: meticulous execution history plus forward roadmap while recovery implem
 
 ## 7) Compact Changelog
 ### 2026-02-10
+- Implemented backend-first control plane (`backend/src`) with `/v1/*` API surface.
+- Added Rust compile worker scaffold and queue integration path (`backend/rust/compile_worker`).
+- Rewired frontend editor compile flow to backend jobs (`src/core/backend/client.ts`, `src/ui/EditorPage.tsx`).
+- Added backend policy-driven AI ON/OFF toggle path in composer.
+- Added research dossier baseline docs under `research/`.
+- Verified `build:backend`, `build`, `test`, and backend health endpoint.
+
+### 2026-02-10 (later)
+- Completed backend ownership for core editor loop:
+  - Dashboard lists/creates projects via backend (`/v1/projects`).
+  - Editor loads/saves `main.tex` via backend file endpoints.
+- Added backend file read endpoint:
+  - `GET /v1/projects/:id/files/:path`
+- Added compile cancellation endpoint + bounded queue:
+  - `PUT /v1/compile/jobs/:id/cancel`
+- Added `scripts/validate_local.ps1` local validation runbook (health, settings, AI-off gate, project create, file read).
+
+### 2026-02-10 (earlier)
 - Implemented P0 hard-reset editor shell architecture with agent-led composer center.
 - Rewrote `EditorPage` orchestration with compile queue/debounce model and UI session persistence.
 - Added local Monaco loader path and shipped `public/monaco/vs` assets.
@@ -135,3 +179,23 @@ Purpose: meticulous execution history plus forward roadmap while recovery implem
 
 ### 2026-02-09 to 2026-02-10 (prior)
 - Completed multi-phase overhaul scaffolding, sign-in incident fixes, parity artifacts, and security/docs baseline updates.
+
+### 2026-02-11
+- Completed Kimi/NVIDIA in-app chat path for the bottom "Ask anything" composer:
+  - `src/ui/EditorPage.tsx`
+  - `src/ui/editor-shell/ComposerPane.tsx`
+  - `src/ui/editor-shell/contracts.ts`
+  - `src/core/backend/client.ts`
+- Added multimodal compose support in UI:
+  - image attach/remove in composer,
+  - request payload as OpenAI-compatible content arrays.
+- Preserved editor-first control:
+  - AI remains hard-toggleable (`AI OFF`) and compile/editor flows remain fully usable without AI.
+- Hardened response normalization for NVIDIA Kimi reasoning-heavy outputs:
+  - fallback parsing now reads `reasoning` when `message.content` is null.
+- Validation refresh:
+  - `npm run build:backend` pass
+  - `npm run build` pass
+  - `npm test -- --run` pass (4 files, 10 tests)
+  - `scripts/validate_local.ps1` pass
+  - `scripts/test_kimi.ps1` pass (models + text + image + edits smoke)

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getAIService } from '../../core/ai/AIService';
 import { AIProviderId } from '../../core/ai/providerIds';
+import { Send, RotateCcw, X } from 'lucide-react';
 
 const aiService = getAIService();
 
@@ -21,7 +22,6 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
 
   const outputEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom of output
   useEffect(() => {
     outputEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [output]);
@@ -29,7 +29,6 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
   useEffect(() => {
     if (isOpen) {
       checkConfiguration();
-      // Reset state on open if desired, or keep history
       setError(null);
     }
   }, [isOpen]);
@@ -53,7 +52,7 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
     try {
       const configured = await aiService.persistKey(provider, apiKey);
       setIsConfigured(configured);
-      setApiKey(''); // Clear memory of key
+      setApiKey('');
       if (!configured) {
         setError('Provider key saved, but provider runtime is not available yet.');
       }
@@ -92,30 +91,29 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal-950/80 p-4 backdrop-blur-sm"
+      className="modal-overlay"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden border border-white/[0.08] bg-charcoal-900 shadow-2xl shadow-black/40"
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden border border-border-subtle bg-warm-900 shadow-2xl shadow-black/40"
+        style={{ borderRadius: 'var(--radius-lg)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] bg-charcoal-850 p-4">
-          <h2 className="flex items-center gap-2 text-xl font-semibold text-text-primary">
-            <span className="text-accent">+</span> AI Assistant
+        <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
+            <span className="text-accent">✦</span> AI Assistant
           </h2>
-          <button
-            onClick={onClose}
-            className="btn-icon h-8 w-8"
-          >
-            ✕
+          <button onClick={onClose} className="btn-icon h-8 w-8">
+            <X size={14} />
           </button>
         </div>
 
-        {/* Content Area */}
-        <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
+        {/* Content */}
+        <div className="custom-scrollbar flex-1 overflow-y-auto p-5">
           {error && (
-            <div className="mb-4 border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+            <div className="mb-4 border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+              style={{ borderRadius: 'var(--radius-md)' }}>
               {error}
             </div>
           )}
@@ -129,7 +127,7 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as AIProviderId)}
-                  className="select-field px-3"
+                  className="select-field"
                 >
                   <option value="mistral">Mistral</option>
                   <option value="openai">OpenAI</option>
@@ -144,23 +142,21 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="input-field px-3"
+                  className="input-field"
                 />
               </div>
 
-              <button
-                onClick={handleSaveConfig}
-                className="btn-primary w-full"
-              >
+              <button onClick={handleSaveConfig} className="btn-primary w-full">
                 Save Configuration
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Output Display */}
+            <div className="space-y-4">
+              {/* Output */}
               {output && (
-                <div className="min-h-[100px] border border-white/[0.08] bg-charcoal-850 p-4">
-                  <div className="prose prose-sm max-w-none text-text-secondary">
+                <div className="border border-border-subtle bg-warm-850 p-4"
+                  style={{ borderRadius: 'var(--radius-md)' }}>
+                  <div className="prose prose-sm max-w-none text-text-secondary prose-headings:text-text-primary prose-code:text-accent">
                     <ReactMarkdown>{output}</ReactMarkdown>
                   </div>
                   <div ref={outputEndRef} />
@@ -169,11 +165,12 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
 
               {isGenerating && !output && (
                 <div className="flex items-center gap-2 text-sm text-text-secondary">
-                  <span className="animate-spin">⟳</span> Generating response...
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-text-muted/30 border-t-accent" />
+                  Generating response…
                 </div>
               )}
 
-              {/* Input Area */}
+              {/* Input */}
               <div className="space-y-3">
                 <textarea
                   value={prompt}
@@ -184,8 +181,8 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                       if (!isGenerating) handleGenerate();
                     }
                   }}
-                  placeholder="Ask something... (Shift+Enter for new line)"
-                  className="custom-scrollbar textarea-field h-32"
+                  placeholder="Ask something… (Shift+Enter for new line)"
+                  className="custom-scrollbar textarea-field h-28"
                   disabled={isGenerating}
                 />
 
@@ -193,24 +190,19 @@ export const AICommandPalette: React.FC<AICommandPaletteProps> = ({ isOpen, onCl
                   <button
                     onClick={handleReset}
                     disabled={isGenerating || (!output && !prompt)}
-                    className="btn-ghost h-9 px-3 text-sm disabled:cursor-not-allowed"
+                    className="btn-ghost h-9 gap-2 text-sm"
                   >
-                    Reset / Clear
+                    <RotateCcw size={13} />
+                    Reset
                   </button>
 
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating || !prompt.trim()}
-                    className={`inline-flex h-10 items-center gap-2 border px-6 font-medium transition-colors
-                      ${isGenerating || !prompt.trim()
-                        ? 'cursor-not-allowed border-charcoal-700 bg-charcoal-700 text-text-muted'
-                        : 'border-accent bg-accent text-white hover:bg-accent-strong'
-                      }`}
+                    className="btn-primary h-9 gap-2 px-5 text-sm"
                   >
-                    {isGenerating ? 'Sending...' : 'Send'}
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
+                    {isGenerating ? 'Sending…' : 'Send'}
+                    <Send size={13} />
                   </button>
                 </div>
               </div>

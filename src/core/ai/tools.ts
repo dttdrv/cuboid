@@ -61,26 +61,26 @@ const buildArticleBibTex = (entry: WebSearchResult) => {
 
 const parseArxivXml = (xml: string): WebSearchResult[] => {
   const entries = xml.split('<entry>').slice(1);
-  return entries
-    .map((entry) => {
-      const title = entry.match(/<title>([\s\S]*?)<\/title>/)?.[1];
-      const summary = entry.match(/<summary>([\s\S]*?)<\/summary>/)?.[1];
-      const id = entry.match(/<id>([\s\S]*?)<\/id>/)?.[1];
-      const published = entry.match(/<published>([\s\S]*?)<\/published>/)?.[1];
-      const authors = Array.from(entry.matchAll(/<name>([\s\S]*?)<\/name>/g)).map((item) =>
-        normalizeWhitespace(item[1]),
-      );
-      if (!title || !id) return null;
-      return {
-        title: normalizeWhitespace(title),
-        url: normalizeWhitespace(id),
-        snippet: normalizeWhitespace(summary || ''),
-        source: 'arxiv' as const,
-        authors,
-        year: published?.slice(0, 4),
-      };
-    })
-    .filter((entry): entry is WebSearchResult => Boolean(entry));
+  const parsed: WebSearchResult[] = [];
+  for (const entry of entries) {
+    const title = entry.match(/<title>([\s\S]*?)<\/title>/)?.[1];
+    const summary = entry.match(/<summary>([\s\S]*?)<\/summary>/)?.[1];
+    const id = entry.match(/<id>([\s\S]*?)<\/id>/)?.[1];
+    const published = entry.match(/<published>([\s\S]*?)<\/published>/)?.[1];
+    const authors = Array.from(entry.matchAll(/<name>([\s\S]*?)<\/name>/g)).map((item) =>
+      normalizeWhitespace(item[1]),
+    );
+    if (!title || !id) continue;
+    parsed.push({
+      title: normalizeWhitespace(title),
+      url: normalizeWhitespace(id),
+      snippet: normalizeWhitespace(summary || ''),
+      source: 'arxiv',
+      authors,
+      year: published?.slice(0, 4),
+    });
+  }
+  return parsed;
 };
 
 export const webSearch = async (query: string, context?: AIRequestContext): Promise<WebSearchResult[]> => {
@@ -107,8 +107,8 @@ export const webSearch = async (query: string, context?: AIRequestContext): Prom
       if (!title) return;
       const authors = Array.isArray(item.author)
         ? item.author
-            .map((author: any) => [author.given, author.family].filter(Boolean).join(' ').trim())
-            .filter(Boolean)
+          .map((author: any) => [author.given, author.family].filter(Boolean).join(' ').trim())
+          .filter(Boolean)
         : [];
       results.push({
         title: normalizeWhitespace(title),

@@ -75,7 +75,7 @@ export class PdfTeXEngine {
     public compileLaTeX(): Promise<CompileResult> {
         this.checkEngineStatus();
         this.latexWorkerStatus = EngineStatus.Busy;
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, _reject) => {
             this.latexWorker!.onmessage = (ev: any) => {
                 const data: any = ev['data'];
                 const cmd: string = data['cmd'] as string;

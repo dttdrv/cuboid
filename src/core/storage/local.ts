@@ -87,7 +87,7 @@ const ensureInviteSeed = () => {
 export const LocalAuth = {
   signIn: async (
     email: string,
-    password: string,
+    _password: string,
     provider: 'email' | 'openai' | 'github' | 'google' = 'email'
   ): Promise<{ user: User; session: Session } | { error: any }> => {
     await delay();

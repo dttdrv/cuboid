@@ -1,5 +1,7 @@
 /* eslint-disable no-restricted-globals */
 
+declare function importScripts(...urls: string[]): void;
+
 import { CompileService } from '../core/compile/CompileService';
 import { CompileEngineAdapter } from '../core/compile/types';
 
@@ -28,7 +30,7 @@ interface WorkerPdfTeXEngine {
 
 declare global {
   // eslint-disable-next-line no-var
-  var PdfTeXEngine: { new (): WorkerPdfTeXEngine } | undefined;
+  var PdfTeXEngine: { new(): WorkerPdfTeXEngine } | undefined;
 }
 
 let workerEngine: WorkerPdfTeXEngine | null = null;
@@ -96,11 +98,11 @@ self.onmessage = async (event: MessageEvent<CompileRequest>) => {
 
   try {
     const result = await compileService.compile(texContent);
-    const pdf = result.pdfBytes
-      ? result.pdfBytes.buffer.slice(
-          result.pdfBytes.byteOffset,
-          result.pdfBytes.byteOffset + result.pdfBytes.byteLength,
-        )
+    const pdf: ArrayBuffer | undefined = result.pdfBytes
+      ? (result.pdfBytes.buffer as ArrayBuffer).slice(
+        result.pdfBytes.byteOffset,
+        result.pdfBytes.byteOffset + result.pdfBytes.byteLength,
+      )
       : undefined;
     const response: CompileResponse = {
       type: 'compile-result',
@@ -111,7 +113,8 @@ self.onmessage = async (event: MessageEvent<CompileRequest>) => {
       errors: result.errors,
     };
 
-    self.postMessage(response, response.pdf ? [response.pdf] : []);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (self.postMessage as any)(response, response.pdf ? [response.pdf] : []);
   } catch (error) {
     const errorResponse: CompileResponse = {
       type: 'compile-result',
@@ -124,5 +127,5 @@ self.onmessage = async (event: MessageEvent<CompileRequest>) => {
   }
 };
 
-export {};
+export { };
 

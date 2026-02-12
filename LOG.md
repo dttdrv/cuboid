@@ -48,11 +48,22 @@
   - **Benchmark Validation**:
     - Confirmed `https://openai.com/prism` reachable.
     - Confirmed legacy `https://openai.com/index/prism` is unstable (`404`) and documented as source-risk in parity planning.
-  - **Governance/File Sync**:
-    - Updated `Plan/PLAN.md` with current evidence, risk posture, and active testing direction.
-    - Updated `Plan/ROADMAP_CHANGELOG.md` with incident handling and serving diagnostics.
-    - Updated `STATE.yaml` to remove stale toolchain-gap risk and add active preview/parity-link risks.
-    - Updated gate/parity threshold artifacts to remove stale validation assumptions and align with current session truth.
+- **Governance/File Sync**:
+  - Updated `Plan/PLAN.md` with current evidence, risk posture, and active testing direction.
+  - Updated `Plan/ROADMAP_CHANGELOG.md` with incident handling and serving diagnostics.
+  - Updated `STATE.yaml` to remove stale toolchain-gap risk and add active preview/parity-link risks.
+  - Updated gate/parity threshold artifacts to remove stale validation assumptions and align with current session truth.
+
+## [2026-02-10] NVIDIA Build API (Kimi K2.5) Provider Wiring
+- **Action**: Switched the backend AI adapter from OpenRouter assumptions to NVIDIA Build’s OpenAI-compatible endpoint.
+- **Backend**:
+  - Provider locked to `nvidia` for this phase.
+  - Endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`
+  - Model default: `moonshotai/kimi-k2-5` (kept configurable).
+  - Egress policy: strict `https` + allowlist (`integrate.api.nvidia.com`, `build.nvidia.com`).
+- **Security**:
+  - AI key stored encrypted at rest in local secret store; never logged.
+  - `AI OFF` policy still blocks all outbound AI calls at the backend gate.
 - [2026-02-10] **P0 Recovery Hard Reset + Meticulous Governance Refresh**
   - **Context**: User feedback flagged current editor as cluttered, directionless, and functionally unreliable.
   - **Implementation (UI/IA)**:
@@ -91,3 +102,67 @@
     - Started and validated dev server on `http://127.0.0.1:4174` (`HTTP 200`).
   - **Governance Update**:
     - Meticulously refreshed `Plan/PLAN.md`, `Plan/ROADMAP_CHANGELOG.md`, `LOG.md`, `STATE.yaml`, and gate artifacts to reflect the new recovery posture and current risks.
+- [2026-02-10] **Backend-First Competitor Slice Implemented (Control Plane + Rust Worker Path)**
+  - **Backend Service**:
+    - Added TypeScript local control plane under `backend/src` with versioned endpoints:
+      - `GET /v1/health`
+      - `POST/GET /v1/projects`
+      - `GET /v1/projects/:id/files`
+      - `PUT /v1/projects/:id/files/:path`
+      - `POST /v1/compile/jobs`
+      - `GET /v1/compile/jobs/:id`
+      - `GET /v1/compile/jobs/:id/events`
+      - `POST /v1/ai/chat`
+      - `POST /v1/ai/edits`
+      - `GET/PUT /v1/settings`
+      - `PUT /v1/settings/ai-toggle`
+  - **Compile Pipeline**:
+    - Added backend compile queue service and worker invocation path in `backend/src/services/compileQueue.ts`.
+    - Added Rust compile worker crate at `backend/rust/compile_worker` using `latexmk` and timeout handling.
+    - Added filesystem artifact layout under `~/.cuboid` with compile jobs/events/build outputs.
+  - **Security/Policy**:
+    - Added encrypted local secret store (`backend/src/services/secrets.ts`) for OpenRouter API key.
+    - Added AI policy gate with hard AI-off blocking and outbound domain allowlist enforcement.
+  - **Frontend Wiring**:
+    - Added backend API client in `src/core/backend/client.ts`.
+    - Rewired editor compile path in `src/ui/EditorPage.tsx` to backend compile jobs.
+    - Added global AI toggle wiring in composer (`src/ui/editor-shell/ComposerPane.tsx`) through settings API.
+  - **Research Deliverables Added**:
+    - `research/prism_crixet_feature_matrix.md`
+    - `research/stack_alternatives_matrix.md`
+    - `research/moat_and_differentiation.md`
+    - `research/funding_narrative_mistral.md`
+    - `research/source_log.md`
+  - **Validation**:
+    - `npm run build:backend` -> pass
+    - `npm run build` -> pass
+    - `npm test -- --run` -> pass (4 files, 10 tests)
+    - `curl http://127.0.0.1:4317/v1/health` -> `HTTP 200`
+- [2026-02-11] **Kimi/NVIDIA In-App Composer + Multimodal Wire-Up**
+  - **Ambient AI Path**:
+    - Completed bottom composer conversation flow in `src/ui/EditorPage.tsx` using `/v1/ai/chat`.
+    - Added transcript rendering + clear behavior in `src/ui/editor-shell/ComposerPane.tsx`.
+    - Wired image attach/remove for multimodal prompts.
+  - **Editor-First Constraint Preserved**:
+    - Kept AI hard toggle policy path (`AI OFF`) and no dependency of compile/editor paths on AI availability.
+    - Kept explicit edit suggestions via `/v1/ai/edits` for edit/fix intents.
+  - **Normalization/Resilience**:
+    - Added response fallback parsing to read `reasoning` when `message.content` is null (`src/core/backend/client.ts`).
+    - Added backend-side reasoning fallback for edit summary extraction (`backend/src/server.ts`).
+    - Improved provider error details in `backend/src/services/aiRouter.ts`.
+  - **Smoke/Validation**:
+    - `npm run build:backend` pass.
+    - `npm run build` pass.
+    - `npm test -- --run` pass (4 files, 10 tests).
+    - `scripts/validate_local.ps1` pass.
+    - `scripts/test_kimi.ps1` pass (models + text + image + edits).
+- [2026-02-11] **Phase 5: UI Refinements — Production Polish**
+  - **CSS Design System**: Added cursor states, focus-visible rings, dropdown slide-in animation, pane restore handle, compile status dot with pulse animation.
+  - **LeftRail**: Click-outside dismiss (useClickOutside hook), aria attrs, active file accent bar, chat empty state polish, section nesting indent.
+  - **EditorShell**: Thin 4px restore handle (expands on hover), smooth grid transition, compile status pill.
+  - **ArtifactPane**: Modified dot on unsaved tabs, middle-click close, 52px bottom padding for floating AI bar.
+  - **ComposerPane**: Auto-scroll to latest message, backdrop-blur glass effect, growing textarea (max 4 lines), typing indicator with spinner.
+  - **PdfViewer**: Click-outside menu dismiss, dark mode invert filter, polished empty state, aria accessibility.
+  - **Contracts**: Added `isModified` to `EditorTab`, `pdfDarkMode` to `PreviewPaneProps`.
+  - **Verification**: `npx tsc --noEmit` zero errors, `npx vite build` clean (282 kB JS, 54 kB CSS).
+
