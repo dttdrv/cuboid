@@ -221,7 +221,6 @@ async function handleRequest(
       if (typeof body.aiBaseUrl === "string") update.aiBaseUrl = body.aiBaseUrl;
       if (Array.isArray(body.allowedAiDomains)) update.allowedAiDomains = body.allowedAiDomains;
       if (typeof body.aiModel === "string") update.aiModel = body.aiModel;
-      if (typeof body.compileWorkerPath === "string") update.compileWorkerPath = body.compileWorkerPath;
       if (typeof body.compileTimeoutMs === "number") update.compileTimeoutMs = body.compileTimeoutMs;
       const candidateApiKey = typeof body.aiApiKey !== "undefined" ? body.aiApiKey : body.openRouterApiKey;
       if (candidateApiKey === null || typeof candidateApiKey === "string") {

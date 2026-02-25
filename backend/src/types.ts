@@ -59,7 +59,6 @@ export interface SettingsUpdateRequest {
   aiBaseUrl?: string;
   allowedAiDomains?: string[];
   aiModel?: string;
-  compileWorkerPath?: string;
   compileTimeoutMs?: number;
   aiApiKey?: string | null;
 }
