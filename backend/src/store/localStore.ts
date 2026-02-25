@@ -280,7 +280,7 @@ export class LocalStore {
       aiBaseUrl: parsedBaseUrl.origin,
       allowedAiDomains: safeDomains,
       aiModel: update.aiModel?.trim() || current.aiModel,
-      compileWorkerPath: update.compileWorkerPath?.trim() || current.compileWorkerPath,
+      compileWorkerPath: current.compileWorkerPath,
       compileTimeoutMs: update.compileTimeoutMs ?? current.compileTimeoutMs
     };
 
