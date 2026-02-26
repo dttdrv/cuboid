@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import { AiRouterService } from "./services/aiRouter.js";
 import { CompileQueueService } from "./services/compileQueue.js";
 import { LocalStore } from "./store/localStore.js";
+import { RateLimiter } from "./utils/rateLimit.js";
 import {
   AiChatRequest,
   AiEditsRequest,
@@ -77,6 +78,11 @@ async function handleRequest(
     store: LocalStore;
     queue: CompileQueueService;
     aiRouter: AiRouterService;
+    limiters: {
+      ai: RateLimiter;
+      compile: RateLimiter;
+      projects: RateLimiter;
+    };
   },
 ): Promise<void> {
   assertCorsAllowed(req);
@@ -106,6 +112,7 @@ async function handleRequest(
       return;
     }
     if (req.method === "POST") {
+      deps.limiters.projects.check(req, 30, 60000); // 30 req/min
       const body = await readJsonBody<ProjectCreateRequest>(req);
       const project = await deps.store.createProject(body?.name);
       await deps.store.writeProjectFile(project.id, "main.tex", "\\documentclass{article}\n\\begin{document}\n\\end{document}\n", "utf8");
@@ -166,6 +173,7 @@ async function handleRequest(
 
   if (rawPath === "/v1/compile/jobs") {
     requireMethod(req, "POST");
+    deps.limiters.compile.check(req, 10, 60000); // 10 req/min
     const body = await readJsonBody<CompileJobRequest>(req);
     const job = await deps.queue.enqueue(body);
     sendJson(req, res, 202, { jobId: job.id, status: job.status });
@@ -246,6 +254,7 @@ async function handleRequest(
 
   if (rawPath === "/v1/ai/chat") {
     requireMethod(req, "POST");
+    deps.limiters.ai.check(req, 20, 60000); // 20 req/min
     const body = await readJsonBody<AiChatRequest>(req);
     const response = await deps.aiRouter.chat(body);
     sendJson(req, res, 200, {
@@ -267,6 +276,7 @@ async function handleRequest(
 
   if (rawPath === "/v1/ai/edits") {
     requireMethod(req, "POST");
+    deps.limiters.ai.check(req, 20, 60000); // 20 req/min
     const body = await readJsonBody<any>(req);
     const prompt = String(body.prompt || body.instruction || "").trim();
     const content = String(body.content || body.input || "").trim();
@@ -311,8 +321,21 @@ async function main(): Promise<void> {
   const queue = new CompileQueueService(store);
   const aiRouter = new AiRouterService(store);
 
+  const aiLimiter = new RateLimiter();
+  const compileLimiter = new RateLimiter();
+  const projectLimiter = new RateLimiter();
+
   const server = createServer((req, res) => {
-    void handleRequest(req, res, { store, queue, aiRouter }).catch((error) => {
+    void handleRequest(req, res, {
+      store,
+      queue,
+      aiRouter,
+      limiters: {
+        ai: aiLimiter,
+        compile: compileLimiter,
+        projects: projectLimiter,
+      },
+    }).catch((error) => {
       sendError(req, res, error);
     });
   });
