@@ -15,6 +15,7 @@ import {
 } from "./types.js";
 import { HttpError, assertCorsAllowed, getRawPath, readJsonBody, sendError, sendJson, setCorsHeaders } from "./utils/http.js";
 import { decodeUrlPathComponent } from "./utils/path.js";
+import { RateLimiter } from "./utils/rateLimit.js";
 
 const API_PREFIX = "/v1";
 const PORT = Number(process.env.CUBOID_BACKEND_PORT || "4173");
@@ -77,6 +78,11 @@ async function handleRequest(
     store: LocalStore;
     queue: CompileQueueService;
     aiRouter: AiRouterService;
+    limiters: {
+      ai: RateLimiter;
+      compile: RateLimiter;
+      project: RateLimiter;
+    };
   },
 ): Promise<void> {
   assertCorsAllowed(req);
@@ -91,6 +97,20 @@ async function handleRequest(
   const rawPath = normalizePath(getRawPath(req.url));
   if (!rawPath.startsWith(API_PREFIX)) {
     throw new HttpError(404, "Not found.");
+  }
+
+  const clientIp = typeof req.headers["x-forwarded-for"] === "string"
+    ? (req.headers["x-forwarded-for"].split(",")[0] || "").trim() || "unknown"
+    : req.socket?.remoteAddress || "unknown";
+
+  if (rawPath.startsWith("/v1/ai/") && deps.limiters.ai.isRateLimited(clientIp)) {
+    throw new HttpError(429, "Too many requests.");
+  }
+  if (rawPath === "/v1/compile/jobs" && req.method === "POST" && deps.limiters.compile.isRateLimited(clientIp)) {
+    throw new HttpError(429, "Too many requests.");
+  }
+  if (rawPath === "/v1/projects" && req.method === "POST" && deps.limiters.project.isRateLimited(clientIp)) {
+    throw new HttpError(429, "Too many requests.");
   }
 
   if (rawPath === "/v1/health") {
@@ -311,8 +331,14 @@ async function main(): Promise<void> {
   const queue = new CompileQueueService(store);
   const aiRouter = new AiRouterService(store);
 
+  const limiters = {
+    ai: new RateLimiter(50, 60000), // 50 requests per minute
+    compile: new RateLimiter(20, 60000), // 20 requests per minute
+    project: new RateLimiter(20, 60000), // 20 requests per minute
+  };
+
   const server = createServer((req, res) => {
-    void handleRequest(req, res, { store, queue, aiRouter }).catch((error) => {
+    void handleRequest(req, res, { store, queue, aiRouter, limiters }).catch((error) => {
       sendError(req, res, error);
     });
   });
