@@ -1,10 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './core/auth/AuthProvider';
 import Login from './ui/Login';
 import Dashboard from './ui/Dashboard';
 import { EditorPage } from './ui/EditorPage';
-import { useAuth } from './core/auth/AuthProvider';
 import EmailSignInScreen from './ui/auth/EmailSignInScreen';
 import CheckInboxScreen from './ui/auth/CheckInboxScreen';
 import SessionExpiredScreen from './ui/auth/SessionExpiredScreen';
@@ -13,96 +12,14 @@ import InviteAcceptanceScreen from './ui/auth/InviteAcceptanceScreen';
 import UnlockSessionScreen from './ui/auth/UnlockSessionScreen';
 import WorkspaceSelectScreen from './ui/workspaces/WorkspaceSelectScreen';
 import CreateWorkspaceScreen from './ui/workspaces/CreateWorkspaceScreen';
-import LoadingScreen from './ui/components/LoadingScreen';
 
-// Protected Route Wrapper
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading, requiresUnlock } = useAuth();
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth/login" replace />;
-  }
-
-  if (requiresUnlock) {
-    return <Navigate to="/auth/unlock" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const WorkspaceRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { selectedWorkspaceId, workspaces, loading } = useAuth();
-
-  if (loading) return <LoadingScreen />;
-  if (workspaces.length === 0) return <Navigate to="/workspaces/new" replace />;
-  if (workspaces.length > 1 && !selectedWorkspaceId) {
-    return <Navigate to="/workspaces/select" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const WorkspaceParamRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { loading, workspaces, selectedWorkspaceId, setSelectedWorkspaceId } = useAuth();
-  const { workspaceId } = useParams<{ workspaceId: string }>();
-
-  React.useEffect(() => {
-    if (!workspaceId) return;
-    if (selectedWorkspaceId === workspaceId) return;
-    if (!workspaces.some((workspace) => workspace.id === workspaceId)) return;
-    setSelectedWorkspaceId(workspaceId);
-  }, [workspaceId, selectedWorkspaceId, workspaces, setSelectedWorkspaceId]);
-
-  if (loading) return <LoadingScreen />;
-  if (!workspaceId) return <Navigate to="/workspaces/select" replace />;
-  if (!workspaces.some((workspace) => workspace.id === workspaceId)) {
-    return <Navigate to="/auth/denied" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const RedirectToWorkspaceProjects: React.FC = () => {
-  const { loading, user, selectedWorkspaceId, workspaces, requiresUnlock } = useAuth();
-  if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/auth/login" replace />;
-  if (requiresUnlock) return <Navigate to="/auth/unlock" replace />;
-  if (selectedWorkspaceId) return <Navigate to={`/app/${selectedWorkspaceId}/projects`} replace />;
-  if (workspaces.length === 1) return <Navigate to={`/app/${workspaces[0].id}/projects`} replace />;
-  if (workspaces.length === 0) return <Navigate to="/workspaces/new" replace />;
-  return <Navigate to="/workspaces/select" replace />;
-};
-
-const RedirectLegacyEditor: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const { loading, selectedWorkspaceId, workspaces, requiresUnlock } = useAuth();
-  if (loading) return <LoadingScreen />;
-  if (requiresUnlock) return <Navigate to="/auth/unlock" replace />;
-  const workspaceId = selectedWorkspaceId || workspaces[0]?.id;
-  if (!workspaceId) return <Navigate to="/workspaces/select" replace />;
-  if (!projectId) return <Navigate to={`/app/${workspaceId}/projects`} replace />;
-  return <Navigate to={`/app/${workspaceId}/projects/${projectId}/editor`} replace />;
-};
-
-const RedirectLegacyInvite: React.FC = () => {
-  const { token } = useParams<{ token: string }>();
-  if (!token) return <Navigate to="/auth/denied" replace />;
-  return <Navigate to={`/auth/invites/${token}`} replace />;
-};
-
-const HomeRoute: React.FC = () => {
-  const { user, selectedWorkspaceId, workspaces, loading, requiresUnlock } = useAuth();
-  if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/auth/login" replace />;
-  if (requiresUnlock) return <Navigate to="/auth/unlock" replace />;
-  if (workspaces.length === 0) return <Navigate to="/workspaces/new" replace />;
-  if (workspaces.length > 1 && !selectedWorkspaceId) return <Navigate to="/workspaces/select" replace />;
-  return <Navigate to={`/app/${selectedWorkspaceId || workspaces[0].id}/projects`} replace />;
-};
+import ProtectedRoute from './ui/routes/ProtectedRoute';
+import WorkspaceRoute from './ui/routes/WorkspaceRoute';
+import WorkspaceParamRoute from './ui/routes/WorkspaceParamRoute';
+import RedirectToWorkspaceProjects from './ui/routes/RedirectToWorkspaceProjects';
+import RedirectLegacyEditor from './ui/routes/RedirectLegacyEditor';
+import RedirectLegacyInvite from './ui/routes/RedirectLegacyInvite';
+import HomeRoute from './ui/routes/HomeRoute';
 
 export const App: React.FC = () => {
   return (
