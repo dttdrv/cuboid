@@ -309,7 +309,8 @@ export class LocalStore {
   }
 
   getBuildDir(projectId: string, jobId: string): string {
-    return join(this.buildRootDir, projectId, jobId);
+    const safeProject = safeJoin(this.buildRootDir, projectId);
+    return safeJoin(safeProject, jobId);
   }
 
   async saveCompileJob(job: CompileJobRecord): Promise<void> {
@@ -329,7 +330,7 @@ export class LocalStore {
   }
 
   private projectDir(projectId: string): string {
-    return join(this.projectsDir, projectId);
+    return safeJoin(this.projectsDir, projectId);
   }
 
   private projectManifestPath(projectId: string): string {
@@ -341,10 +342,10 @@ export class LocalStore {
   }
 
   private compileJobPath(jobId: string): string {
-    return join(this.compileJobsDir, `${jobId}.json`);
+    return safeJoin(this.compileJobsDir, `${jobId}.json`);
   }
 
   private compileEventsPath(jobId: string): string {
-    return join(this.compileEventsDir, `${jobId}.jsonl`);
+    return safeJoin(this.compileEventsDir, `${jobId}.jsonl`);
   }
 }
