@@ -99,8 +99,16 @@ export function setCorsHeaders(req: IncomingMessage, res: ServerResponse): void 
   res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
 }
 
+export function setSecurityHeaders(res: ServerResponse): void {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+}
+
 export function sendJson(req: IncomingMessage, res: ServerResponse, statusCode: number, payload: unknown): void {
   setCorsHeaders(req, res);
+  setSecurityHeaders(res);
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(`${JSON.stringify(payload)}\n`);
