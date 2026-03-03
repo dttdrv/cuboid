@@ -14,7 +14,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, onClose: () =
   }, [ref, onClose]);
 }
 
-const LeftPane: React.FC<LeftPaneProps> = ({
+const LeftPane: React.FC<LeftPaneProps> = React.memo(({
   mode,
   onModeChange,
   files,
@@ -173,6 +173,6 @@ const LeftPane: React.FC<LeftPaneProps> = ({
       </footer>
     </aside>
   );
-};
+});
 
 export default LeftPane;

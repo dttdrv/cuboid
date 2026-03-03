@@ -17,7 +17,7 @@ type DragTarget = 'left' | 'right' | null;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const EditorShell: React.FC<EditorShellProps> = ({
+const EditorShell: React.FC<EditorShellProps> = React.memo(({
   leftPane,
   editorPane,
   composerPane,
@@ -157,6 +157,6 @@ const EditorShell: React.FC<EditorShellProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default EditorShell;

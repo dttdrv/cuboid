@@ -580,7 +580,7 @@ export const EditorPage: React.FC = () => {
       <EditorShell
         leftPaneVisible={leftPaneVisible}
         onShowLeftPane={() => setLeftPaneVisible(true)}
-        leftPane={{
+        leftPane={useMemo(() => ({
           mode: leftPaneMode,
           onModeChange: setLeftPaneMode,
           files,
@@ -598,8 +598,16 @@ export const EditorPage: React.FC = () => {
           onSelectChat: () => setLeftPaneMode('chats'),
           onOpenSettings: () => setSettingsOpen(true),
           onHidePane: () => setLeftPaneVisible(false),
-        }}
-        editorPane={{
+        }), [
+          leftPaneMode,
+          files,
+          activeFilePath,
+          saveNotice,
+          chatMessages,
+          loadFileIntoEditor,
+          handleAddFile,
+        ])}
+        editorPane={useMemo(() => ({
           content,
           onContentChange: (value) => {
             setContent(value);
@@ -624,8 +632,23 @@ export const EditorPage: React.FC = () => {
               rejectAction(hunkId);
             }
           },
-        }}
-        composerPane={{
+        }), [
+          content,
+          openTabs,
+          fileCache,
+          activeFilePath,
+          saveNotice,
+          activeTabId,
+          handleTabChange,
+          handleTabClose,
+          diagnostics,
+          revealLine,
+          queueCompile,
+          inlineHunks,
+          applyAction,
+          rejectAction,
+        ])}
+        composerPane={useMemo(() => ({
           prompt,
           aiEnabled,
           aiBusy,
@@ -639,15 +662,32 @@ export const EditorPage: React.FC = () => {
           onClearMessages: () => setChatMessages([]),
           onAttachImage: attachImage,
           onRemoveImage: () => setAttachedImage(null),
-        }}
-        previewPane={{
+        }), [
+          prompt,
+          aiEnabled,
+          aiBusy,
+          aiProviderLabel,
+          aiModelLabel,
+          chatMessages,
+          attachedImage,
+          submitPrompt,
+          toggleAi,
+          attachImage,
+        ])}
+        previewPane={useMemo(() => ({
           compileState,
           pdfBlob,
           compileLog,
           pdfDarkMode,
           onCompileNow: () => queueCompile('manual'),
           onTogglePdfDarkMode: setPdfDarkMode,
-        }}
+        }), [
+          compileState,
+          pdfBlob,
+          compileLog,
+          pdfDarkMode,
+          queueCompile,
+        ])}
       />
 
       <CommandPalette

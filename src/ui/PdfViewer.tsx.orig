@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Download, FileText, Loader2, MoreVertical, Play, ScrollText, Settings2 } from 'lucide-react';
 import { PreviewPaneProps } from './editor-shell/contracts';
 
-export const PdfViewer: React.FC<PreviewPaneProps> = React.memo(({
+const PdfViewer: React.FC<PreviewPaneProps> = ({
   compileState,
   pdfBlob,
   compileLog,
@@ -124,7 +124,7 @@ export const PdfViewer: React.FC<PreviewPaneProps> = React.memo(({
       />
     </div>
   );
-});
+};
 
 /* ── Three-dots menu component with click-outside ── */
 const ThreeDotsMenu: React.FC<{
