@@ -334,11 +334,11 @@ export class LocalStore {
   }
 
   private projectManifestPath(projectId: string): string {
-    return join(this.projectDir(projectId), "manifest.json");
+    return safeJoin(this.projectDir(projectId), "manifest.json");
   }
 
   private projectFilesDir(projectId: string): string {
-    return join(this.projectDir(projectId), "files");
+    return safeJoin(this.projectDir(projectId), "files");
   }
 
   private compileJobPath(jobId: string): string {
