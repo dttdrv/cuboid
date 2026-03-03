@@ -47,21 +47,17 @@ interface MonacoEditorProps {
   onResolveHunk?: (hunkId: string, action: 'accept' | 'reject') => void;
 }
 
-const EMPTY_MARKERS: EditorMarker[] = [];
-const EMPTY_DECORATIONS: EditorDecoration[] = [];
-const EMPTY_HUNKS: MonacoEditorProps['inlineHunks'] = [];
-
-const MonacoEditor: React.FC<MonacoEditorProps> = React.memo(({
+const MonacoEditor: React.FC<MonacoEditorProps> = ({
   value,
   onChange,
   language = 'latex',
   onTriggerAI,
-  markers = EMPTY_MARKERS,
-  decorations = EMPTY_DECORATIONS,
+  markers = [],
+  decorations = [],
   revealLine,
   onSelectionChange,
   onCursorLineChange,
-  inlineHunks = EMPTY_HUNKS,
+  inlineHunks = [],
   activeHunkId,
   onNavigateHunk,
   onResolveHunk,
@@ -197,6 +193,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = React.memo(({
       />
     </div>
   );
-});
+};
 
 export default MonacoEditor;

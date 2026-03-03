@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { ImagePlus, Loader2, Send, Trash2, X } from 'lucide-react';
 import { ComposerPaneProps } from './contracts';
 
-const ComposerPane: React.FC<ComposerPaneProps> = ({
+const ComposerPane: React.FC<ComposerPaneProps> = React.memo(({
   prompt,
   aiEnabled,
   aiBusy,
@@ -172,7 +172,7 @@ const ComposerPane: React.FC<ComposerPaneProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default ComposerPane;
 

@@ -9,7 +9,7 @@ const toMonacoSeverity = (severity: 'error' | 'warning' | 'note') => {
   return 2;
 };
 
-const ArtifactPane: React.FC<EditorPaneProps> = ({
+const ArtifactPane: React.FC<EditorPaneProps> = React.memo(({
   content,
   onContentChange,
   openTabs,
@@ -86,6 +86,6 @@ const ArtifactPane: React.FC<EditorPaneProps> = ({
       </div>
     </section>
   );
-};
+});
 
 export default ArtifactPane;
