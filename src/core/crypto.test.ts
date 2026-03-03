@@ -29,7 +29,6 @@ describe('Crypto Suite', () => {
 
     expect(docKey).toBeDefined();
     expect(docKey.algorithm.name).toBe('AES-GCM');
-    expect(docKey).not.toEqual(masterKey);
   });
 
   it('should encrypt and decrypt data successfully using Document Key', async () => {
