@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../core/auth/AuthProvider';
 import CenterCard from '../components/CenterCard';
@@ -8,10 +8,13 @@ const WorkspaceSelectScreen: React.FC = () => {
   const navigate = useNavigate();
   const { workspaces, selectedWorkspaceId, setSelectedWorkspaceId, signOut } = useAuth();
 
-  const handleChoose = async (workspaceId: string) => {
+  // ⚡ Bolt: Wrapped handleChoose in useCallback to ensure a stable reference is passed
+  // as the onClick prop to WorkspaceRow components. This works together with React.memo()
+  // on WorkspaceRow to prevent all rows from re-rendering when selectedWorkspaceId changes.
+  const handleChoose = useCallback(async (workspaceId: string) => {
     await setSelectedWorkspaceId(workspaceId);
     navigate(`/app/${workspaceId}/projects`);
-  };
+  }, [navigate, setSelectedWorkspaceId]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -29,7 +32,7 @@ const WorkspaceSelectScreen: React.FC = () => {
                 key={workspace.id}
                 workspace={workspace}
                 active={workspace.id === selectedWorkspaceId}
-                onClick={() => handleChoose(workspace.id)}
+                onClick={handleChoose}
               />
             ))}
           </div>

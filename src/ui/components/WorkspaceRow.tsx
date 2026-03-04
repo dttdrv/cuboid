@@ -4,14 +4,17 @@ import { Workspace } from '../../core/data/types';
 interface WorkspaceRowProps {
   workspace: Workspace;
   active?: boolean;
-  onClick: () => void;
+  onClick: (workspaceId: string) => void;
 }
 
-const WorkspaceRow: React.FC<WorkspaceRowProps> = ({ workspace, active = false, onClick }) => {
+// ⚡ Bolt: Wrapped in React.memo() to prevent unnecessary re-renders when parent states
+// (like selectedWorkspaceId) change but this specific row's props remain the same.
+// Impact: Reduces re-renders of list items by O(N).
+const WorkspaceRow: React.FC<WorkspaceRowProps> = React.memo(({ workspace, active = false, onClick }) => {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onClick(workspace.id)}
       className={`w-full border border-white/[0.08] px-4 py-3 text-left transition-colors hover:bg-charcoal-850 ${
         active ? 'selection-row' : 'bg-charcoal-900'
       }`}
@@ -27,6 +30,6 @@ const WorkspaceRow: React.FC<WorkspaceRowProps> = ({ workspace, active = false, 
       </div>
     </button>
   );
-};
+});
 
 export default WorkspaceRow;
