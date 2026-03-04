@@ -69,7 +69,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function mergeExtraBody(payload: JsonObject, extraBody: unknown): void {
   if (!isPlainObject(extraBody)) return;
   // Never allow overriding required core fields.
-  const blocked = new Set(["model", "messages", "stream"]);
+  // 🛡️ Sentinel: Block prototype pollution vectors
+  const blocked = new Set(["model", "messages", "stream", "__proto__", "constructor", "prototype"]);
   for (const [key, value] of Object.entries(extraBody)) {
     if (blocked.has(key)) continue;
     payload[key] = value as any;
