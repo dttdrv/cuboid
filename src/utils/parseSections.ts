@@ -17,28 +17,22 @@ function extractBraceContent(content: string, startIndex: number): { content: st
   
   let depth = 1;
   let i = startIndex + 1;
-  let result = '';
+  const contentStart = i;
   
   while (i < content.length && depth > 0) {
     if (content[i] === '\\' && i + 1 < content.length) {
       // Handle escaped character (e.g., \{, \}, \\)
-      result += content[i];
-      i++;
-      result += content[i];
-      i++;
+      i += 2;
     } else if (content[i] === '{') {
       depth++;
-      result += content[i];
       i++;
     } else if (content[i] === '}') {
       depth--;
       if (depth === 0) {
-        return { content: result, endIndex: i };
+        return { content: content.substring(contentStart, i), endIndex: i };
       }
-      result += content[i];
       i++;
     } else {
-      result += content[i];
       i++;
     }
   }
@@ -55,52 +49,45 @@ function extractBraceContent(content: string, startIndex: number): { content: st
  * @returns An array of Section objects with level, title, and line number.
  */
 export function parseSections(content: string): Section[] {
+  // Performance optimization: Avoid splitting the entire document into an array of lines.
+  // We use a single global regex match and count newlines to track the current line number,
+  // which significantly reduces memory allocations and parsing time on large documents.
   const sections: Section[] = [];
-  const lines = content.split('\n');
+  const sectionRegex = /\\(subsubsection|subsection|section)\*?\{/g;
   
-  lines.forEach((line, lineNumber) => {
-    // Check for \section or \section* commands
-    let match = line.match(/\\section\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 1,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
+  let match;
+  let currentLine = 1;
+  let lastIndex = 0;
+
+  while ((match = sectionRegex.exec(content)) !== null) {
+    // Fast single-pass loop to advance line numbers
+    for (let i = lastIndex; i < match.index; i++) {
+      if (content[i] === '\n') {
+        currentLine++;
       }
+    }
+    lastIndex = match.index;
+    
+    const matchStr = match[0];
+    let level = 1;
+    if (matchStr.startsWith('\\subsubsection')) {
+      level = 3;
+    } else if (matchStr.startsWith('\\subsection')) {
+      level = 2;
     }
     
-    // Check for \subsection or \subsection* commands
-    match = line.match(/\\subsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 2,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
+    // Index of the opening brace
+    const braceIndex = match.index + matchStr.length - 1;
+    const braceContent = extractBraceContent(content, braceIndex);
+
+    if (braceContent) {
+      sections.push({
+        level,
+        title: braceContent.content,
+        line: currentLine
+      });
     }
-    
-    // Check for \subsubsection or \subsubsection* commands
-    match = line.match(/\\subsubsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 3,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-  });
+  }
   
   return sections;
 }
