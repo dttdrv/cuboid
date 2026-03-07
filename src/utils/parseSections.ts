@@ -17,28 +17,25 @@ function extractBraceContent(content: string, startIndex: number): { content: st
   
   let depth = 1;
   let i = startIndex + 1;
-  let result = '';
+  const len = content.length;
   
-  while (i < content.length && depth > 0) {
-    if (content[i] === '\\' && i + 1 < content.length) {
-      // Handle escaped character (e.g., \{, \}, \\)
-      result += content[i];
-      i++;
-      result += content[i];
-      i++;
-    } else if (content[i] === '{') {
+  // OPTIMIZATION: Loop runs faster by avoiding frequent string concatenation.
+  // We extract the substring only once at the end when the closing brace is found.
+  while (i < len && depth > 0) {
+    const char = content[i];
+    if (char === '\\' && i + 1 < len) {
+      // Skip escaped character (e.g., \{, \}, \\)
+      i += 2;
+    } else if (char === '{') {
       depth++;
-      result += content[i];
       i++;
-    } else if (content[i] === '}') {
+    } else if (char === '}') {
       depth--;
       if (depth === 0) {
-        return { content: result, endIndex: i };
+        return { content: content.substring(startIndex + 1, i), endIndex: i };
       }
-      result += content[i];
       i++;
     } else {
-      result += content[i];
       i++;
     }
   }
@@ -56,51 +53,38 @@ function extractBraceContent(content: string, startIndex: number): { content: st
  */
 export function parseSections(content: string): Section[] {
   const sections: Section[] = [];
-  const lines = content.split('\n');
   
-  lines.forEach((line, lineNumber) => {
-    // Check for \section or \section* commands
-    let match = line.match(/\\section\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 1,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
+  // OPTIMIZATION: Single-pass global regex extraction reduces the need for split('\n')
+  // and multiple match() execution per line, reducing memory allocations significantly.
+  const regex = /\\(section|subsection|subsubsection)\*?\{/g;
+  let match;
+  let currentLine = 1;
+  let lastIndex = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    // Advance line counter by efficiently finding next newline
+    let nextNewline = content.indexOf('\n', lastIndex);
+    while (nextNewline !== -1 && nextNewline < match.index) {
+      currentLine++;
+      nextNewline = content.indexOf('\n', nextNewline + 1);
     }
+    lastIndex = match.index;
+
+    let level = 1;
+    if (match[1] === 'subsection') level = 2;
+    else if (match[1] === 'subsubsection') level = 3;
+
+    const braceIndex = match.index + match[0].length - 1; // Index of the opening brace
+    const braceContent = extractBraceContent(content, braceIndex);
     
-    // Check for \subsection or \subsection* commands
-    match = line.match(/\\subsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 2,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
+    if (braceContent) {
+      sections.push({
+        level,
+        title: braceContent.content,
+        line: currentLine
+      });
     }
-    
-    // Check for \subsubsection or \subsubsection* commands
-    match = line.match(/\\subsubsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 3,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-  });
+  }
   
   return sections;
 }
