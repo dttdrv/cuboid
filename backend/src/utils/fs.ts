@@ -35,14 +35,20 @@ export async function appendJsonLine(pathValue: string, value: unknown): Promise
   await appendFile(pathValue, `${JSON.stringify(value)}\n`, "utf8");
 }
 
+// ⚡ Bolt: Using a single for...of loop instead of chained .map().filter().map()
+// reduces CPU overhead and intermediate array allocations when processing large JSONL files
 export async function readJsonLines<T>(pathValue: string): Promise<T[]> {
   try {
     const raw = await readFile(pathValue, "utf8");
-    return raw
-      .split(/\r?\n/g)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line) as T);
+    const lines = raw.split(/\r?\n/g);
+    const result: T[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.length > 0) {
+        result.push(JSON.parse(trimmed) as T);
+      }
+    }
+    return result;
   } catch {
     return [];
   }
