@@ -1,0 +1,3 @@
+## 2024-03-11 - Single-pass regex for text parsing
+**Learning:** The previous LaTeX section parsing logic aggressively split the entire document into an array of lines and then ran multiple regex match calls per line, leading to significant memory allocation overhead and CPU utilization. Iterating char-by-char for string building also severely slowed down parsing.
+**Action:** When extracting information from large text payloads (like a LaTeX document), use a single-pass global regular expression (`exec()`) to locate targets and extract matching segments using `substring()`, avoiding expensive `split()` intermediate arrays and slow char-by-char concatenation.
