@@ -2,3 +2,8 @@
 **Vulnerability:** API endpoints in `backend/src/server.ts` taking user input (`projectId`, `jobId`) were directly joined with paths using `join` in `backend/src/store/localStore.ts` without proper sanitization. This allowed attackers to escape the project directory context and overwrite or read arbitrary files by sending payload containing `../` sequences.
 **Learning:** Even internal backend services handling project resources must securely sanitize all parameter values used for file operations to prevent path traversal outside expected boundaries.
 **Prevention:** Always use safe path sanitization utilities, like the implemented `safeJoin` and `toSafeRelativePath` in `backend/src/utils/path.ts`, to securely construct file paths and ensure the final path remains within the intended boundaries.
+
+## 2025-03-13 - [Command Injection in Compile Worker]
+**Vulnerability:** The Rust compilation worker (`backend/rust/compile_worker/src/main.rs`) executes `latexmk` with a user-provided `main_file` without prefixing the arguments with `--` or validating the filename format. This allowed an attacker to inject command-line arguments (like `-shell-escape`) to `latexmk` by providing an option-like string as the `mainFile` parameter in the API request.
+**Learning:** When passing user-controlled file paths as arguments to external command-line tools (especially tools like compilers that support arbitrary execution flags), option-like filenames must be strictly validated or rejected, unless the command explicitly supports and uses a `--` separator.
+**Prevention:** In `backend/src/services/compileQueue.ts`, validate the `mainFile` input to ensure it does not start with a hyphen (`-`). Reject requests that fail this check before passing the job to the Rust worker.

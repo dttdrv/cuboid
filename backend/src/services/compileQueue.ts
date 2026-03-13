@@ -101,6 +101,13 @@ export class CompileQueueService {
     const settings = await this.store.getSettings();
     const projectId = request.projectId.trim();
     const mainFile = request.mainFile?.trim() || "main.tex";
+
+    // Security: Mitigate command injection via option-like filenames (e.g., -shell-escape)
+    // passed to latexmk in the Rust compile worker.
+    if (mainFile.startsWith("-")) {
+      throw new HttpError(400, "mainFile cannot start with a hyphen.");
+    }
+
     const timeoutMs = request.timeoutMs ?? settings.compileTimeoutMs;
     const jobId = createId("job");
 
