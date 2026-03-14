@@ -128,12 +128,21 @@ export const fetchBackendSettings = async (): Promise<BackendSettings> => {
 export const backendListProjects = async (): Promise<BackendProjectManifest[]> => {
   const payload = await requestJson<any>('/v1/projects');
   const projectsRaw = Array.isArray(payload?.projects) ? payload.projects : [];
-  return projectsRaw.map((item: any) => ({
-    id: String(item?.id || ''),
-    name: String(item?.name || 'Untitled Project'),
-    createdAt: String(item?.createdAt || new Date().toISOString()),
-    updatedAt: String(item?.updatedAt || item?.createdAt || new Date().toISOString()),
-  })).filter((p: BackendProjectManifest) => p.id.length > 0);
+
+  // ⚡ Bolt: Single-pass iteration to prevent intermediate array allocation
+  const projects: BackendProjectManifest[] = [];
+  for (const item of projectsRaw) {
+    const p: BackendProjectManifest = {
+      id: String(item?.id || ''),
+      name: String(item?.name || 'Untitled Project'),
+      createdAt: String(item?.createdAt || new Date().toISOString()),
+      updatedAt: String(item?.updatedAt || item?.createdAt || new Date().toISOString()),
+    };
+    if (p.id.length > 0) {
+      projects.push(p);
+    }
+  }
+  return projects;
 };
 
 export const backendCreateProject = async (name: string): Promise<BackendProjectManifest> => {
@@ -153,6 +162,20 @@ export const backendListFiles = async (projectId: string): Promise<{ project: Ba
   const payload = await requestJson<any>(`/v1/projects/${encodeURIComponent(projectId)}/files`);
   const projectRaw = payload?.project || {};
   const filesRaw = Array.isArray(payload?.files) ? payload.files : [];
+
+  // ⚡ Bolt: Single-pass iteration to prevent intermediate array allocation
+  const files: BackendFileEntry[] = [];
+  for (const item of filesRaw) {
+    const f: BackendFileEntry = {
+      path: String(item?.path || ''),
+      size: Number(item?.size || 0),
+      modifiedAt: String(item?.modifiedAt || new Date().toISOString()),
+    };
+    if (f.path.length > 0) {
+      files.push(f);
+    }
+  }
+
   return {
     project: {
       id: String(projectRaw?.id || projectId),
@@ -160,11 +183,7 @@ export const backendListFiles = async (projectId: string): Promise<{ project: Ba
       createdAt: String(projectRaw?.createdAt || new Date().toISOString()),
       updatedAt: String(projectRaw?.updatedAt || projectRaw?.createdAt || new Date().toISOString()),
     },
-    files: filesRaw.map((item: any) => ({
-      path: String(item?.path || ''),
-      size: Number(item?.size || 0),
-      modifiedAt: String(item?.modifiedAt || new Date().toISOString()),
-    })).filter((f: BackendFileEntry) => f.path.length > 0),
+    files,
   };
 };
 
@@ -221,16 +240,25 @@ const unwrapAssistantText = (rawContent: any): string => {
     if (typeof rawContent.content === 'string') return rawContent.content;
   }
   if (!Array.isArray(rawContent)) return '';
-  const textParts = rawContent
-    .map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') {
-        if (typeof item.text === 'string') return item.text;
-        if (typeof item.content === 'string') return item.content;
+
+  // ⚡ Bolt: Single-pass iteration to prevent intermediate array allocation
+  const textParts: string[] = [];
+  for (const item of rawContent) {
+    let part = '';
+    if (typeof item === 'string') {
+      part = item;
+    } else if (item && typeof item === 'object') {
+      if (typeof item.text === 'string') {
+        part = item.text;
+      } else if (typeof item.content === 'string') {
+        part = item.content;
       }
-      return '';
-    })
-    .filter((v): v is string => typeof v === 'string' && v.length > 0);
+    }
+    if (typeof part === 'string' && part.length > 0) {
+      textParts.push(part);
+    }
+  }
+
   return textParts.join('\n').trim();
 };
 
@@ -241,16 +269,25 @@ const unwrapAssistantReasoning = (rawReasoning: any): string => {
     if (typeof rawReasoning.content === 'string') return rawReasoning.content.trim();
   }
   if (!Array.isArray(rawReasoning)) return '';
-  const parts = rawReasoning
-    .map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') {
-        if (typeof item.text === 'string') return item.text;
-        if (typeof item.content === 'string') return item.content;
+
+  // ⚡ Bolt: Single-pass iteration to prevent intermediate array allocation
+  const parts: string[] = [];
+  for (const item of rawReasoning) {
+    let part = '';
+    if (typeof item === 'string') {
+      part = item;
+    } else if (item && typeof item === 'object') {
+      if (typeof item.text === 'string') {
+        part = item.text;
+      } else if (typeof item.content === 'string') {
+        part = item.content;
       }
-      return '';
-    })
-    .filter((v): v is string => typeof v === 'string' && v.length > 0);
+    }
+    if (typeof part === 'string' && part.length > 0) {
+      parts.push(part);
+    }
+  }
+
   return parts.join('\n').trim();
 };
 
