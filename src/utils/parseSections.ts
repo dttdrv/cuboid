@@ -17,28 +17,22 @@ function extractBraceContent(content: string, startIndex: number): { content: st
   
   let depth = 1;
   let i = startIndex + 1;
-  let result = '';
   
+  // Optimization: use substring over character-by-character string building
   while (i < content.length && depth > 0) {
     if (content[i] === '\\' && i + 1 < content.length) {
-      // Handle escaped character (e.g., \{, \}, \\)
-      result += content[i];
-      i++;
-      result += content[i];
-      i++;
+      // Skip escaped character (e.g., \{, \}, \\)
+      i += 2;
     } else if (content[i] === '{') {
       depth++;
-      result += content[i];
       i++;
     } else if (content[i] === '}') {
       depth--;
       if (depth === 0) {
-        return { content: result, endIndex: i };
+        return { content: content.substring(startIndex + 1, i), endIndex: i };
       }
-      result += content[i];
       i++;
     } else {
-      result += content[i];
       i++;
     }
   }
@@ -56,51 +50,53 @@ function extractBraceContent(content: string, startIndex: number): { content: st
  */
 export function parseSections(content: string): Section[] {
   const sections: Section[] = [];
-  const lines = content.split('\n');
   
-  lines.forEach((line, lineNumber) => {
-    // Check for \section or \section* commands
-    let match = line.match(/\\section\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 1,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
+  // Optimization: Single pass global regex instead of splitting by newlines and doing 3 matches per line
+  const regex = /\\(?:sub)*section\*?\{/g;
+  let match;
+
+  let lastIndex = 0;
+  let currentLine = 1;
+
+  while ((match = regex.exec(content)) !== null) {
+    // Lazily count newlines up to the match index to avoid memory-heavy string splitting
+    let nlIndex = content.indexOf('\n', lastIndex);
+    while (nlIndex !== -1 && nlIndex < match.index) {
+      currentLine++;
+      lastIndex = nlIndex + 1;
+      nlIndex = content.indexOf('\n', lastIndex);
     }
+    lastIndex = match.index;
+
+    const matchText = match[0];
+    let level = 1;
+    if (matchText.startsWith('\\subsubsection')) {
+      level = 3;
+    } else if (matchText.startsWith('\\subsection')) {
+      level = 2;
+    }
+
+    const braceIndex = match.index + matchText.length - 1;
+    const braceContent = extractBraceContent(content, braceIndex);
     
-    // Check for \subsection or \subsection* commands
-    match = line.match(/\\subsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 2,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
+    if (braceContent) {
+      sections.push({
+        level: level,
+        title: braceContent.content,
+        line: currentLine
+      });
+      // Skip parsing inside the section title to avoid false positives and speed up parsing
+      regex.lastIndex = braceContent.endIndex;
+      lastIndex = braceContent.endIndex;
+
+      // We must account for newlines that might exist inside the section title
+      let innerNlIndex = content.indexOf('\n', match.index);
+      while (innerNlIndex !== -1 && innerNlIndex < braceContent.endIndex) {
+          currentLine++;
+          innerNlIndex = content.indexOf('\n', innerNlIndex + 1);
       }
     }
-    
-    // Check for \subsubsection or \subsubsection* commands
-    match = line.match(/\\subsubsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 3,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-  });
+  }
   
   return sections;
 }
