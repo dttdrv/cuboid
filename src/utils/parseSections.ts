@@ -17,28 +17,25 @@ function extractBraceContent(content: string, startIndex: number): { content: st
   
   let depth = 1;
   let i = startIndex + 1;
-  let result = '';
   
+  // ⚡ Bolt: Performance improvement - Avoid character-by-character string building
+  // Prefer substring extraction to minimize memory allocations.
   while (i < content.length && depth > 0) {
     if (content[i] === '\\' && i + 1 < content.length) {
       // Handle escaped character (e.g., \{, \}, \\)
-      result += content[i];
-      i++;
-      result += content[i];
-      i++;
+      // Skip the escaped character
+      i += 2;
     } else if (content[i] === '{') {
       depth++;
-      result += content[i];
       i++;
     } else if (content[i] === '}') {
       depth--;
       if (depth === 0) {
-        return { content: result, endIndex: i };
+        // ⚡ Bolt: Use substring to extract the content efficiently without string concatenation
+        return { content: content.substring(startIndex + 1, i), endIndex: i };
       }
-      result += content[i];
       i++;
     } else {
-      result += content[i];
       i++;
     }
   }
@@ -56,51 +53,46 @@ function extractBraceContent(content: string, startIndex: number): { content: st
  */
 export function parseSections(content: string): Section[] {
   const sections: Section[] = [];
-  const lines = content.split('\n');
   
-  lines.forEach((line, lineNumber) => {
-    // Check for \section or \section* commands
-    let match = line.match(/\\section\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 1,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
+  // ⚡ Bolt: Performance improvement
+  // Use a single-pass global regular expression instead of splitting the entire document
+  // by newlines and allocating a massive array, which consumes significant memory and CPU.
+  const regex = /\\(subsubsection|subsection|section)\*?\{/g;
+  let match;
+
+  // ⚡ Bolt: Lazily count newlines for efficient line number tracking
+  let currentLineNumber = 1;
+  let lastNewlineIndex = -1;
+
+  while ((match = regex.exec(content)) !== null) {
+    const command = match[1];
+    let level = 1;
+    if (command === 'subsection') level = 2;
+    else if (command === 'subsubsection') level = 3;
+
+    // The index of the opening brace '{'
+    const braceIndex = match.index + match[0].length - 1;
+    const braceContent = extractBraceContent(content, braceIndex);
     
-    // Check for \subsection or \subsection* commands
-    match = line.match(/\\subsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 2,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
+    if (braceContent) {
+      // Advance line number tracking up to the current match index
+      while (true) {
+        const nextNewline = content.indexOf('\n', lastNewlineIndex + 1);
+        if (nextNewline !== -1 && nextNewline < match.index) {
+          currentLineNumber++;
+          lastNewlineIndex = nextNewline;
+        } else {
+          break;
+        }
       }
+
+      sections.push({
+        level,
+        title: braceContent.content,
+        line: currentLineNumber
+      });
     }
-    
-    // Check for \subsubsection or \subsubsection* commands
-    match = line.match(/\\subsubsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 3,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-  });
+  }
   
   return sections;
 }
