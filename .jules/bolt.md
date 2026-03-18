@@ -1,0 +1,3 @@
+## 2024-11-20 - Text Parsing Optimization using Substring and Global Regex
+**Learning:** For heavy text parsing (like LaTeX section extraction), using `split('\n')` on large files followed by iterating line-by-line is memory and CPU intensive due to large string array allocations. Building sub-strings character-by-character inside loops further worsens performance.
+**Action:** Prefer single-pass global regular expressions (e.g., `regex.exec(content)`) combined with lazy newline counting (`indexOf('\n', lastNewlineIndex)`) to determine line numbers. Extract portions of strings using index tracking and `substring()` rather than sequential string concatenation.
