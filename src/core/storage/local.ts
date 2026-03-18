@@ -15,11 +15,50 @@ const KEYS = {
 const delay = () => new Promise(r => setTimeout(r, 100));
 const nowIso = () => new Date().toISOString();
 
+class MemoryStorage implements Storage {
+  private store: Map<string, string> = new Map();
+
+  get length() {
+    return this.store.size;
+  }
+
+  clear() {
+    this.store.clear();
+  }
+
+  getItem(key: string): string | null {
+    const value = this.store.get(key);
+    return value !== undefined ? value : null;
+  }
+
+  key(index: number): string | null {
+    const keys = Array.from(this.store.keys());
+    if (index >= 0 && index < keys.length) {
+      return keys[index];
+    }
+    return null;
+  }
+
+  removeItem(key: string) {
+    this.store.delete(key);
+  }
+
+  setItem(key: string, value: string) {
+    this.store.set(key, value);
+  }
+}
+
+let fallbackStorage: Storage | null = null;
+
 const sessionStore = (): Storage => {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     return window.sessionStorage;
   }
-  return localStorage;
+  // Fall back to in-memory storage to prevent token leakage to localStorage.
+  if (!fallbackStorage) {
+    fallbackStorage = new MemoryStorage();
+  }
+  return fallbackStorage;
 };
 
 const readJson = <T>(key: string, fallback: T): T => {
