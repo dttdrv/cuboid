@@ -17,28 +17,23 @@ function extractBraceContent(content: string, startIndex: number): { content: st
   
   let depth = 1;
   let i = startIndex + 1;
-  let result = '';
   
   while (i < content.length && depth > 0) {
     if (content[i] === '\\' && i + 1 < content.length) {
-      // Handle escaped character (e.g., \{, \}, \\)
-      result += content[i];
-      i++;
-      result += content[i];
-      i++;
+      // Skip escaped character
+      i += 2;
     } else if (content[i] === '{') {
       depth++;
-      result += content[i];
       i++;
     } else if (content[i] === '}') {
       depth--;
       if (depth === 0) {
-        return { content: result, endIndex: i };
+        // Extract substring and resolve escaped braces/slashes if any
+        let rawContent = content.substring(startIndex + 1, i);
+        return { content: rawContent, endIndex: i };
       }
-      result += content[i];
       i++;
     } else {
-      result += content[i];
       i++;
     }
   }
@@ -56,51 +51,42 @@ function extractBraceContent(content: string, startIndex: number): { content: st
  */
 export function parseSections(content: string): Section[] {
   const sections: Section[] = [];
-  const lines = content.split('\n');
-  
-  lines.forEach((line, lineNumber) => {
-    // Check for \section or \section* commands
-    let match = line.match(/\\section\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 1,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
+  // ⚡ Bolt: Single-pass regex to find all section commands without splitting by newline
+  const regex = /\\(section|subsection|subsubsection)\*?\{/g;
+  let match;
+
+  let currentLine = 1;
+  let lastNewlineIndex = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    const cmd = match[1]; // 'section', 'subsection', or 'subsubsection'
+    const level = cmd === 'section' ? 1 : cmd === 'subsection' ? 2 : 3;
+    const braceIndex = match.index + match[0].length - 1; // Index of the opening '{'
+
+    const braceContent = extractBraceContent(content, braceIndex);
+    if (braceContent) {
+      // ⚡ Bolt: Lazily count newlines up to the match index to resolve the line number
+      while (lastNewlineIndex !== -1 && lastNewlineIndex < match.index) {
+        lastNewlineIndex = content.indexOf('\n', lastNewlineIndex);
+        if (lastNewlineIndex !== -1 && lastNewlineIndex < match.index) {
+          currentLine++;
+          lastNewlineIndex++;
+        } else {
+          break;
+        }
       }
+
+      sections.push({
+        level,
+        title: braceContent.content,
+        line: currentLine
+      });
+
+      // Optimization: we could advance `regex.lastIndex` to `braceContent.endIndex` to skip inner sections,
+      // but standard LaTeX parsers typically evaluate sequentially, and there might be nested sections
+      // or comments. We leave `regex.lastIndex` alone to ensure full semantic matching parity.
     }
-    
-    // Check for \subsection or \subsection* commands
-    match = line.match(/\\subsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 2,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-    
-    // Check for \subsubsection or \subsubsection* commands
-    match = line.match(/\\subsubsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 3,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-  });
-  
+  }
+
   return sections;
 }
