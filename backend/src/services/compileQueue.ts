@@ -101,6 +101,11 @@ export class CompileQueueService {
     const settings = await this.store.getSettings();
     const projectId = request.projectId.trim();
     const mainFile = request.mainFile?.trim() || "main.tex";
+
+    if (mainFile.startsWith("-")) {
+      throw new HttpError(400, "Invalid main file name.");
+    }
+
     const timeoutMs = request.timeoutMs ?? settings.compileTimeoutMs;
     const jobId = createId("job");
 
