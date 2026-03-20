@@ -1,0 +1,4 @@
+
+## 2025-03-03 - [Heavy Text Parsing Optimization Pattern]
+**Learning:** In the codebase, parsing large files by splitting them line-by-line using `split('\n')` creates a large memory footprint and unnecessary garbage collection overhead due to the creation of many string arrays. Furthermore, iteratively building strings character by character is less efficient than using JavaScript's native string slicing methods (`substring` or `slice`).
+**Action:** Replace `split('\n')` loops on large texts with global regular expressions (`matchAll`). To keep track of line numbers lazily during a single pass, utilize `String.prototype.indexOf('\n', lastNewlineIndex)` to jump between newline characters and increment a counter. Prefer extracting strings using `substring` instead of concatenating characters in a loop.
