@@ -101,6 +101,14 @@ export class CompileQueueService {
     const settings = await this.store.getSettings();
     const projectId = request.projectId.trim();
     const mainFile = request.mainFile?.trim() || "main.tex";
+
+    // 🛡️ Sentinel: Prevent Option Injection (Command Injection)
+    // latexmk and other binaries can treat positional filename arguments
+    // starting with "-" as options (e.g., "-shell-escape").
+    if (mainFile.startsWith("-")) {
+      throw new HttpError(400, "Invalid mainFile: cannot start with a hyphen.");
+    }
+
     const timeoutMs = request.timeoutMs ?? settings.compileTimeoutMs;
     const jobId = createId("job");
 
