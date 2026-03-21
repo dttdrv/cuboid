@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { URL } from "node:url";
@@ -114,17 +114,32 @@ export class LocalStore {
   }
 
   async listProjects(): Promise<ProjectManifest[]> {
-    const entries = await listFilesRecursive(this.projectsDir);
-    const manifests: ProjectManifest[] = [];
-    for (const filePath of entries) {
-      if (!filePath.endsWith("manifest.json")) {
-        continue;
+    let entries;
+    try {
+      // ⚡ Bolt: Read only the top-level project directories instead of recursively scanning
+      // every file in all projects (which becomes extremely slow for large projects).
+      entries = await readdir(this.projectsDir, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+
+    const promises: Promise<ProjectManifest | null>[] = [];
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const manifestPath = join(this.projectsDir, entry.name, "manifest.json");
+        promises.push(readJsonFile<ProjectManifest>(manifestPath));
       }
-      const manifest = await readJsonFile<ProjectManifest>(filePath);
+    }
+
+    // ⚡ Bolt: Concurrently parse all manifests to avoid sequential await overhead
+    const results = await Promise.all(promises);
+    const manifests: ProjectManifest[] = [];
+    for (const manifest of results) {
       if (manifest) {
         manifests.push(manifest);
       }
     }
+
     manifests.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return manifests;
   }
