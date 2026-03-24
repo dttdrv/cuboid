@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { URL } from "node:url";
@@ -114,17 +114,32 @@ export class LocalStore {
   }
 
   async listProjects(): Promise<ProjectManifest[]> {
-    const entries = await listFilesRecursive(this.projectsDir);
-    const manifests: ProjectManifest[] = [];
-    for (const filePath of entries) {
-      if (!filePath.endsWith("manifest.json")) {
-        continue;
+    // ⚡ Bolt: Replaced O(N) recursive file walk with shallow directory read
+    // Finding known files at shallow depths (manifest.json in project roots)
+    // using recursive walk scales poorly as project files increase.
+    let entries;
+    try {
+      entries = await readdir(this.projectsDir, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+
+    const manifestPromises = [];
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const manifestPath = join(this.projectsDir, entry.name, "manifest.json");
+        manifestPromises.push(readJsonFile<ProjectManifest>(manifestPath));
       }
-      const manifest = await readJsonFile<ProjectManifest>(filePath);
+    }
+
+    const results = await Promise.all(manifestPromises);
+    const manifests: ProjectManifest[] = [];
+    for (const manifest of results) {
       if (manifest) {
         manifests.push(manifest);
       }
     }
+
     manifests.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return manifests;
   }
