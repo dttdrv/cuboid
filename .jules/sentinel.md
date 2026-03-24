@@ -2,3 +2,7 @@
 **Vulnerability:** API endpoints in `backend/src/server.ts` taking user input (`projectId`, `jobId`) were directly joined with paths using `join` in `backend/src/store/localStore.ts` without proper sanitization. This allowed attackers to escape the project directory context and overwrite or read arbitrary files by sending payload containing `../` sequences.
 **Learning:** Even internal backend services handling project resources must securely sanitize all parameter values used for file operations to prevent path traversal outside expected boundaries.
 **Prevention:** Always use safe path sanitization utilities, like the implemented `safeJoin` and `toSafeRelativePath` in `backend/src/utils/path.ts`, to securely construct file paths and ensure the final path remains within the intended boundaries.
+## 2024-05-24 - [Session tokens persisted in localStorage]
+**Vulnerability:** The \`sessionStore\` fallback in \`src/core/storage/local.ts\` defaulted to \`localStorage\` when \`sessionStorage\` was unavailable. This caused sensitive session tokens (\`access_token\`, \`refresh_token\`) to be persisted to disk.
+**Learning:** In SSR (Server-Side Rendering) or local-first environments, falling back from \`sessionStorage\` to \`localStorage\` exposes session tokens to persistent disk storage, increasing the risk of token exfiltration via XSS or physical access.
+**Prevention:** Never fall back to \`localStorage\` for \`sessionStorage\` polyfills. Use an isolated in-memory storage instance instead to prevent sensitive token leakage to persistent disk storage.

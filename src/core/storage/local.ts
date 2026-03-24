@@ -15,11 +15,42 @@ const KEYS = {
 const delay = () => new Promise(r => setTimeout(r, 100));
 const nowIso = () => new Date().toISOString();
 
+class InMemoryStorage implements Storage {
+  private data: Record<string, string> = {};
+
+  get length() {
+    return Object.keys(this.data).length;
+  }
+
+  clear() {
+    this.data = {};
+  }
+
+  getItem(key: string) {
+    return Object.prototype.hasOwnProperty.call(this.data, key) ? this.data[key] : null;
+  }
+
+  key(index: number) {
+    const keys = Object.keys(this.data);
+    return index >= 0 && index < keys.length ? keys[index] : null;
+  }
+
+  removeItem(key: string) {
+    delete this.data[key];
+  }
+
+  setItem(key: string, value: string) {
+    this.data[key] = String(value);
+  }
+}
+
+const memoryFallback = new InMemoryStorage();
+
 const sessionStore = (): Storage => {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     return window.sessionStorage;
   }
-  return localStorage;
+  return memoryFallback;
 };
 
 const readJson = <T>(key: string, fallback: T): T => {
