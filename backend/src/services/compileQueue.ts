@@ -101,6 +101,13 @@ export class CompileQueueService {
     const settings = await this.store.getSettings();
     const projectId = request.projectId.trim();
     const mainFile = request.mainFile?.trim() || "main.tex";
+
+    // Prevent option injection (Command Injection) via filenames starting with "-"
+    // e.g. -shell-escape which would be evaluated as a flag by latexmk
+    if (mainFile.startsWith("-")) {
+      throw new HttpError(400, "mainFile cannot start with a hyphen.");
+    }
+
     const timeoutMs = request.timeoutMs ?? settings.compileTimeoutMs;
     const jobId = createId("job");
 
