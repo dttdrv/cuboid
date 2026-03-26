@@ -104,6 +104,11 @@ export class CompileQueueService {
     const timeoutMs = request.timeoutMs ?? settings.compileTimeoutMs;
     const jobId = createId("job");
 
+    // 🛡️ Sentinel: Prevent command option injection (e.g., -shell-escape)
+    if (mainFile.startsWith("-")) {
+      throw new HttpError(400, "mainFile cannot start with a hyphen.");
+    }
+
     if (this.queue.length >= MAX_QUEUE_ITEMS) {
       throw new HttpError(429, "Compile queue is full.");
     }
