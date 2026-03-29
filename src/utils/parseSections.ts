@@ -17,28 +17,22 @@ function extractBraceContent(content: string, startIndex: number): { content: st
   
   let depth = 1;
   let i = startIndex + 1;
-  let result = '';
   
   while (i < content.length && depth > 0) {
     if (content[i] === '\\' && i + 1 < content.length) {
       // Handle escaped character (e.g., \{, \}, \\)
-      result += content[i];
-      i++;
-      result += content[i];
-      i++;
+      i += 2;
     } else if (content[i] === '{') {
       depth++;
-      result += content[i];
       i++;
     } else if (content[i] === '}') {
       depth--;
       if (depth === 0) {
-        return { content: result, endIndex: i };
+        // ⚡ Bolt: utilize content.substring instead of character-by-character appending
+        return { content: content.substring(startIndex + 1, i), endIndex: i };
       }
-      result += content[i];
       i++;
     } else {
-      result += content[i];
       i++;
     }
   }
@@ -56,51 +50,43 @@ function extractBraceContent(content: string, startIndex: number): { content: st
  */
 export function parseSections(content: string): Section[] {
   const sections: Section[] = [];
-  const lines = content.split('\n');
   
-  lines.forEach((line, lineNumber) => {
-    // Check for \section or \section* commands
-    let match = line.match(/\\section\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 1,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
+  // ⚡ Bolt: Use a single regex over the entire text instead of splitting by newline.
+  // This avoids massive array allocation for large documents and 3x regex passes per line.
+  const regex = /\\(section|subsection|subsubsection)\*?\{/g;
+  let match;
+
+  let lineNumber = 1;
+  let lastNewlineIndex = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    const type = match[1];
+    let level = 1;
+    if (type === 'subsection') level = 2;
+    else if (type === 'subsubsection') level = 3;
+    
+    // ⚡ Bolt: Lazily track line numbers instead of splitting strings, avoiding O(N) memory
+    const matchIndex = match.index;
+    while (true) {
+      const nextNewline = content.indexOf('\n', lastNewlineIndex);
+      if (nextNewline !== -1 && nextNewline < matchIndex) {
+        lineNumber++;
+        lastNewlineIndex = nextNewline + 1;
+      } else {
+        break;
       }
     }
     
-    // Check for \subsection or \subsection* commands
-    match = line.match(/\\subsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 2,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
+    const braceIndex = matchIndex + match[0].length - 1; // Index of the opening brace
+    const braceContent = extractBraceContent(content, braceIndex);
+    if (braceContent) {
+      sections.push({
+        level,
+        title: braceContent.content,
+        line: lineNumber
+      });
     }
-    
-    // Check for \subsubsection or \subsubsection* commands
-    match = line.match(/\\subsubsection\*?\{/);
-    if (match) {
-      const braceIndex = match.index! + match[0].length - 1; // Index of the opening brace
-      const braceContent = extractBraceContent(line, braceIndex);
-      if (braceContent) {
-        sections.push({
-          level: 3,
-          title: braceContent.content,
-          line: lineNumber + 1
-        });
-      }
-    }
-  });
+  }
   
   return sections;
 }
