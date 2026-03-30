@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { URL } from "node:url";
@@ -114,17 +114,25 @@ export class LocalStore {
   }
 
   async listProjects(): Promise<ProjectManifest[]> {
-    const entries = await listFilesRecursive(this.projectsDir);
-    const manifests: ProjectManifest[] = [];
-    for (const filePath of entries) {
-      if (!filePath.endsWith("manifest.json")) {
-        continue;
-      }
-      const manifest = await readJsonFile<ProjectManifest>(filePath);
-      if (manifest) {
-        manifests.push(manifest);
-      }
+    let subdirs;
+    try {
+      subdirs = await readdir(this.projectsDir, { withFileTypes: true });
+    } catch {
+      return [];
     }
+
+    // Bolt: Optimized sequential file reading to concurrent Promise.all,
+    // and avoided O(N) listFilesRecursive for shallow manifest.json search.
+    const manifestPromises = subdirs
+      .filter(dirent => dirent.isDirectory())
+      .map(async (dirent) => {
+        const manifestPath = join(this.projectsDir, dirent.name, "manifest.json");
+        return readJsonFile<ProjectManifest>(manifestPath);
+      });
+
+    const results = await Promise.all(manifestPromises);
+    const manifests = results.filter((m): m is ProjectManifest => m !== null);
+
     manifests.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return manifests;
   }
@@ -136,20 +144,23 @@ export class LocalStore {
   async listProjectFiles(projectId: string): Promise<ProjectFileEntry[]> {
     const root = this.projectFilesDir(projectId);
     const files = await listFilesRecursive(root);
-    const out: ProjectFileEntry[] = [];
-    for (const absolutePath of files) {
-      try {
-        const stats = await stat(absolutePath);
-        const rel = relative(root, absolutePath).replace(/\\/g, "/");
-        out.push({
-          path: rel,
-          size: stats.size,
-          modifiedAt: stats.mtime.toISOString()
-        });
-      } catch {
-        continue;
-      }
-    }
+    // Bolt: Optimized sequential stats to concurrent Promise.all
+    const entries = await Promise.all(
+      files.map(async (absolutePath) => {
+        try {
+          const stats = await stat(absolutePath);
+          const rel = relative(root, absolutePath).replace(/\\/g, "/");
+          return {
+            path: rel,
+            size: stats.size,
+            modifiedAt: stats.mtime.toISOString()
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+    const out = entries.filter((e): e is ProjectFileEntry => e !== null);
     out.sort((a, b) => a.path.localeCompare(b.path));
     return out;
   }
