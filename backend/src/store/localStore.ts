@@ -137,19 +137,33 @@ export class LocalStore {
     const root = this.projectFilesDir(projectId);
     const files = await listFilesRecursive(root);
     const out: ProjectFileEntry[] = [];
-    for (const absolutePath of files) {
-      try {
-        const stats = await stat(absolutePath);
-        const rel = relative(root, absolutePath).replace(/\\/g, "/");
-        out.push({
-          path: rel,
-          size: stats.size,
-          modifiedAt: stats.mtime.toISOString()
-        });
-      } catch {
-        continue;
+
+    // Performance optimization: Process file stats concurrently in chunks to avoid EMFILE limits
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+      const chunk = files.slice(i, i + CHUNK_SIZE);
+      const promises = chunk.map(async (absolutePath) => {
+        try {
+          const stats = await stat(absolutePath);
+          const rel = relative(root, absolutePath).replace(/\\/g, "/");
+          return {
+            path: rel,
+            size: stats.size,
+            modifiedAt: stats.mtime.toISOString()
+          };
+        } catch {
+          return null;
+        }
+      });
+
+      const results = await Promise.all(promises);
+      for (const res of results) {
+        if (res !== null) {
+          out.push(res);
+        }
       }
     }
+
     out.sort((a, b) => a.path.localeCompare(b.path));
     return out;
   }
