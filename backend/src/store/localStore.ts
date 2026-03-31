@@ -115,18 +115,14 @@ export class LocalStore {
 
   async listProjects(): Promise<ProjectManifest[]> {
     const entries = await listFilesRecursive(this.projectsDir);
-    const manifests: ProjectManifest[] = [];
-    for (const filePath of entries) {
-      if (!filePath.endsWith("manifest.json")) {
-        continue;
-      }
-      const manifest = await readJsonFile<ProjectManifest>(filePath);
-      if (manifest) {
-        manifests.push(manifest);
-      }
-    }
-    manifests.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    return manifests;
+    const manifests = await Promise.all(
+      entries
+        .filter((filePath) => filePath.endsWith("manifest.json"))
+        .map((filePath) => readJsonFile<ProjectManifest>(filePath))
+    );
+    const out = manifests.filter((m): m is ProjectManifest => m !== null);
+    out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return out;
   }
 
   async getProjectManifest(projectId: string): Promise<ProjectManifest | null> {
@@ -136,20 +132,22 @@ export class LocalStore {
   async listProjectFiles(projectId: string): Promise<ProjectFileEntry[]> {
     const root = this.projectFilesDir(projectId);
     const files = await listFilesRecursive(root);
-    const out: ProjectFileEntry[] = [];
-    for (const absolutePath of files) {
-      try {
-        const stats = await stat(absolutePath);
-        const rel = relative(root, absolutePath).replace(/\\/g, "/");
-        out.push({
-          path: rel,
-          size: stats.size,
-          modifiedAt: stats.mtime.toISOString()
-        });
-      } catch {
-        continue;
-      }
-    }
+    const results = await Promise.all(
+      files.map(async (absolutePath) => {
+        try {
+          const stats = await stat(absolutePath);
+          const rel = relative(root, absolutePath).replace(/\\/g, "/");
+          return {
+            path: rel,
+            size: stats.size,
+            modifiedAt: stats.mtime.toISOString()
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+    const out = results.filter((r): r is ProjectFileEntry => r !== null);
     out.sort((a, b) => a.path.localeCompare(b.path));
     return out;
   }
