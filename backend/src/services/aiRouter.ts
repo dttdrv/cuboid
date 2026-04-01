@@ -28,24 +28,38 @@ function decodeBody(res: any, chunks: Buffer[]): string {
 }
 
 function parseEventStream(raw: string): JsonObject | null {
-  const lines = raw.split(/\r?\n/g);
   let aggregated = "";
   let last: any = null;
+  let start = 0;
+  const len = raw.length;
 
-  for (const line of lines) {
-    if (!line.startsWith("data:")) continue;
-    const data = line.slice(5).trim();
-    if (!data || data === "[DONE]") continue;
-    try {
-      const parsed = JSON.parse(data);
-      last = parsed;
-      const delta = parsed?.choices?.[0]?.delta;
-      if (typeof delta?.content === "string") {
-        aggregated += delta.content;
+  // ⚡ Bolt: Single-pass iteration to prevent intermediate array allocations
+  // from raw.split() and avoid substrings for non-data lines.
+  while (start < len) {
+    let end = raw.indexOf('\n', start);
+    if (end === -1) end = len;
+
+    if (end - start > 5 && raw.startsWith("data:", start)) {
+      let dataEnd = end;
+      if (dataEnd > start && raw.charCodeAt(dataEnd - 1) === 13) { // '\r'
+        dataEnd--;
       }
-    } catch {
-      continue;
+
+      const dataStr = raw.substring(start + 5, dataEnd).trim();
+      if (dataStr && dataStr !== "[DONE]") {
+        try {
+          const parsed = JSON.parse(dataStr);
+          last = parsed;
+          const delta = parsed?.choices?.[0]?.delta;
+          if (typeof delta?.content === "string") {
+            aggregated += delta.content;
+          }
+        } catch {
+          // Ignore parse errors on incomplete chunks
+        }
+      }
     }
+    start = end + 1;
   }
 
   if (!last) return null;
